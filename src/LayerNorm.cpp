@@ -1,12 +1,12 @@
 //
-// channelSizereated by Hamidreza Khazaei on 4/19/24.
+// Created by Hamidreza Khazaei on 4/19/24.
 //
 
 #include "LayerNorm.h"
 
 namespace {
 void layerNormPerChannel(std::span<float> out, std::span<const float> in,
-                      std::span<const float> weights, std::span<const float> bias) {
+                         std::span<const float> weights, std::span<const float> bias) {
   const auto m = llm::mean(in);
   const auto var = llm::variance(in, m);
 
@@ -43,19 +43,19 @@ void layerNorm(view3d<float> out, view3d<const float> in, std::span<const float>
                std::span<const float> bias) {
   const auto batchSize = out.extent(0);
   const auto sequenceLength = out.extent(1);
-  const auto channelSize = out.extent(2);
+  const auto outDim = out.extent(2);
 
   LLM_ASSERT(batchSize == in.extent(0));
   LLM_ASSERT(sequenceLength == in.extent(1));
-  LLM_ASSERT(channelSize == in.extent(2));
-  LLM_ASSERT(weights.size() == channelSize);
-  LLM_ASSERT(bias.size() == channelSize);
+  LLM_ASSERT(outDim == in.extent(2));
+  LLM_ASSERT(weights.size() == outDim);
+  LLM_ASSERT(bias.size() == outDim);
 
   for (auto batch = 0; batch < batchSize; ++batch) {
     for (auto token = 0; token < sequenceLength; ++token) {
-      const auto inRow = std::span{&in[batch, token, 0], channelSize};
-      const auto outRow = std::span{&out[batch, token, 0], channelSize};
-      layerNormPerChannel(outRow, inRow, weights, bias);
+      const auto inView = std::span{&in[batch, token, 0], outDim};
+      const auto outView = std::span{&out[batch, token, 0], outDim};
+      layerNormPerChannel(outView, inView, weights, bias);
     }
   }
 }

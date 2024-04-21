@@ -17,17 +17,19 @@ float dotProduct(std::span<const float> in1, std::span<const float> in2) {
 
 float scoreQueryKey(std::span<float> out, view2d<const float> in, const int currToken,
                     const int queryOffset, const int keyOffset, const int headOffset,
-                    const size_t headSize) {
+                    const size_t headDim) {
 
-  const auto query = std::span{&in[currToken, headOffset + queryOffset], headSize};
+  const auto query =
+      std::span{&in[currToken, headOffset + queryOffset], headDim};
   // XXX scale can be computed outside for optimizations.
-  const auto scale = 1.0 / std::sqrtf(headSize);
+  const auto scale = 1.0F / std::sqrtf(static_cast<float>(headDim));
 
   // find the dot product with all the prev tokens and store max (causal/masked)
   // score query key
   auto maxScore = std::numeric_limits<float>::min();
   for (auto prevToken = 0; prevToken <= currToken; ++prevToken) {
-    const auto key = std::span{&in[prevToken, headOffset + keyOffset], headSize};
+    const auto key =
+        std::span{&in[prevToken, headOffset + keyOffset], headDim};
     const auto score = dotProduct(query, key) * scale;
     maxScore = std::fmaxf(maxScore, score);
     out[prevToken] = score;
@@ -37,20 +39,20 @@ float scoreQueryKey(std::span<float> out, view2d<const float> in, const int curr
   return maxScore;
 }
 
-void softmax(std::span<float> out, std::span<const float> in, const int currTokens,
-             const float maxScore) {
+void softmax(std::span<float> out, std::span<const float> in, const float maxScore) {
   // calculate the exp and keep track of sum
-  // maxCorr is being calculated and subtracted only for numerical stability
+  // max score is being calculated and subtracted only for numerical stability
   auto expSum = 0.0F;
-  for (auto token = 0; token <= currTokens; ++token) {
+  const auto numElem = in.size();
+  for (auto token = 0; token < numElem; ++token) {
     const auto expV = expf(in[token] - maxScore);
     expSum += expV;
     out[token] = expV;
   }
   const auto expSumInv = expSum == 0.0F ? 0.0F : 1.0F / expSum;
 
-  // normalize to get the softmax
-  for (auto token = 0; token <= currTokens; ++token) {
+  // normalize over sum of exp
+  for (auto token = 0; token < numElem; ++token) {
     out[token] *= expSumInv;
   }
 }
@@ -59,23 +61,26 @@ void weightedSumValues(std::span<float> out, view2d<const float> in,
                        std::span<const float> softmaxScores, const int currToken,
                        const int valueOffset, const int headOffset) {
 
-  for(auto& elem : out) { elem = 0; }
+  for (auto &elem : out) {
+    elem = 0;
+  }
 
-  const auto headSize = out.size(); // same as the value size (embedding / numHeads)
+  const auto headDim = out.size(); // same as the value size (embedding / numHeads)
   for (auto prevToken = 0; prevToken <= currToken; ++prevToken) {
-    const auto value = std::span{&in[prevToken, headOffset + valueOffset], headSize};
+    const auto value = std::span{&in[prevToken, headOffset + valueOffset], headDim};
     const auto valueScale = softmaxScores[prevToken];
-    for (auto i = 0; i < headSize; i++) {
+    for (auto i = 0; i < headDim; i++) {
       out[i] += valueScale * value[i];
     }
   }
 }
 
-void attention(view3d<float> out, view3d<const float> in, const int numHeads) {
+void multiHeadAttentionCausal(view3d<float> out, view3d<const float> in,
+                              const int numHeads) {
   const auto batchSize = in.extent(0);
   const auto seqLen = in.extent(1);
-  const auto inChSize = in.extent(2);
-  const auto embeddingDim = inChSize / 3;
+  const auto inDim = in.extent(2);
+  const auto embeddingDim = static_cast<int>(inDim / 3);
   LLM_ASSERT(batchSize == out.extent(0));
   LLM_ASSERT(seqLen == out.extent(1));
   LLM_ASSERT(embeddingDim == out.extent(2));
@@ -86,24 +91,26 @@ void attention(view3d<float> out, view3d<const float> in, const int numHeads) {
   const auto queryOffset = 0;
   const auto keyOffset = queryOffset + embeddingDim;
   const auto valueOffset = keyOffset + embeddingDim;
-  const auto headSize = embeddingDim / numHeads;
+  const auto headDim = embeddingDim / numHeads;
 
-  auto scoreBuf = std::vector<float>(seqLen);    // xxx optimize out
+  auto scoreBuf = std::vector<float>(seqLen);   // xxx optimize out
   auto softmaxBuf = std::vector<float>(seqLen); // xxx optimize out
   for (auto batch = 0; batch < batchSize; ++batch) {
-    const auto inBatch = view2d<const float>{&in[batch, 0, 0], seqLen, inChSize};
+    const auto inBatch = view2d<const float>{&in[batch, 0, 0], seqLen, inDim};
     for (auto currToken = 0; currToken < seqLen; ++currToken) {
       for (auto head = 0; head < numHeads; ++head) {
-        const auto headOffset = headSize * head;
+        const auto headOffset = headDim * head;
 
         // score key with queries
         const auto maxScore = scoreQueryKey(scoreBuf, inBatch, currToken, queryOffset,
-                                           keyOffset, headOffset, headSize);
+                                            keyOffset, headOffset, headDim);
         // softmax of scores
-        softmax(softmaxBuf, scoreBuf, currToken, maxScore);
+        softmax(softmaxBuf,
+                std::span{scoreBuf.data(), static_cast<size_t>(currToken + 1)}, maxScore);
 
         // weighted sum of value vectors to get attention for single head
-        const auto outView = std::span{&out[batch, currToken, headOffset], headSize};
+        const auto outView =
+            std::span{&out[batch, currToken, headOffset], static_cast<size_t>(headDim)};
         weightedSumValues(outView, inBatch, softmaxBuf, currToken, valueOffset,
                           headOffset);
       }

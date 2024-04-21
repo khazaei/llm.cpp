@@ -14,7 +14,7 @@ namespace llm {
 // attention is the only layer that mixes information across time
 // every other operation is applied at every (b,t) position independently
 // (and of course, no layer mixes information across batch)
-void attention(view3d<float> out, view3d<const float> in, int numHeads);
+void multiHeadAttentionCausal(view3d<float> out, view3d<const float> in, int numHeads);
 
 }
 
