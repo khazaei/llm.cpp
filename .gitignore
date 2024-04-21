@@ -20,21 +20,6 @@ xcshareddata/
 # User-specific stuff:
 .idea/
 
-# Config file
-artifact
-src/config/artifacts
-
-# Log files
-log
-*.log
-
-# Pcap files
-pcap
-
-# Files gen by simcloud script
-console*
-ttys*
-
 html/
 
 __pycache__/
