@@ -25,29 +25,29 @@ float scoreQueryKey(std::span<float> out, view2d<const float> in, const int curr
 
   // find the dot product with all the prev tokens and store max (causal/masked)
   // score query key
-  auto maxCorr = std::numeric_limits<float>::min();
+  auto maxScore = std::numeric_limits<float>::min();
   for (auto prevToken = 0; prevToken <= currToken; ++prevToken) {
     const auto key = std::span{&in[prevToken, headOffset + keyOffset], headSize};
-    const auto corr = dotProduct(query, key) * scale;
-    maxCorr = std::fmaxf(maxCorr, corr);
-    out[prevToken] = corr;
+    const auto score = dotProduct(query, key) * scale;
+    maxScore = std::fmaxf(maxScore, score);
+    out[prevToken] = score;
   }
 
   // keeping track of maxCorr to be used in softmax for numerical stability.
-  return maxCorr;
+  return maxScore;
 }
 
 void softmax(std::span<float> out, std::span<const float> in, const int currTokens,
-             const float maxCorr) {
+             const float maxScore) {
   // calculate the exp and keep track of sum
   // maxCorr is being calculated and subtracted only for numerical stability
   auto expSum = 0.0F;
   for (auto token = 0; token <= currTokens; ++token) {
-    const auto expV = expf(in[token] - maxCorr);
+    const auto expV = expf(in[token] - maxScore);
     expSum += expV;
     out[token] = expV;
   }
-  auto expSumInv = expSum == 0.0F ? 0.0F : 1.0F / expSum;
+  const auto expSumInv = expSum == 0.0F ? 0.0F : 1.0F / expSum;
 
   // normalize to get the softmax
   for (auto token = 0; token <= currTokens; ++token) {
@@ -88,7 +88,7 @@ void attention(view3d<float> out, view3d<const float> in, const int numHeads) {
   const auto valueOffset = keyOffset + embeddingDim;
   const auto headSize = embeddingDim / numHeads;
 
-  auto corrBuf = std::vector<float>(seqLen);    // xxx optimize out
+  auto scoreBuf = std::vector<float>(seqLen);    // xxx optimize out
   auto softmaxBuf = std::vector<float>(seqLen); // xxx optimize out
   for (auto batch = 0; batch < batchSize; ++batch) {
     const auto inBatch = view2d<const float>{&in[batch, 0, 0], seqLen, inChSize};
@@ -97,10 +97,10 @@ void attention(view3d<float> out, view3d<const float> in, const int numHeads) {
         const auto headOffset = headSize * head;
 
         // score key with queries
-        const auto maxCorr = scoreQueryKey(corrBuf, inBatch, currToken, queryOffset,
+        const auto maxScore = scoreQueryKey(scoreBuf, inBatch, currToken, queryOffset,
                                            keyOffset, headOffset, headSize);
         // softmax of scores
-        softmax(softmaxBuf, corrBuf, currToken, maxCorr);
+        softmax(softmaxBuf, scoreBuf, currToken, maxScore);
 
         // weighted sum of value vectors to get attention for single head
         const auto outView = std::span{&out[batch, currToken, headOffset], headSize};
