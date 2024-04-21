@@ -4,11 +4,9 @@
 
 #include "Extension.h"
 
-namespace llm{
+namespace llm {
 
-bool
-isApproximatelyEqual(const float a, const float b,
-                     const float tolerance) {
+bool isApproximatelyEqual(const float a, const float b, const float tolerance) {
   const auto diff = std::fabs(a - b);
   if (diff <= tolerance) {
     return true;
@@ -21,4 +19,4 @@ isApproximatelyEqual(const float a, const float b,
   return false;
 }
 
-}
+} // namespace llm

@@ -15,6 +15,6 @@ namespace llm {
 void matMul(view3d<float> out, view3d<const float> in, view2d<const float> weight,
             std::span<const float> bias);
 
-}
+} // namespace llm
 
 #endif // LLM_INFERENCE_MATMUL_H

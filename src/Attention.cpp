@@ -19,8 +19,7 @@ float scoreQueryKey(std::span<float> out, view2d<const float> in, const int curr
                     const int queryOffset, const int keyOffset, const int headOffset,
                     const size_t headDim) {
 
-  const auto query =
-      std::span{&in[currToken, headOffset + queryOffset], headDim};
+  const auto query = std::span{&in[currToken, headOffset + queryOffset], headDim};
   // XXX scale can be computed outside for optimizations.
   const auto scale = 1.0F / std::sqrtf(static_cast<float>(headDim));
 
@@ -28,8 +27,7 @@ float scoreQueryKey(std::span<float> out, view2d<const float> in, const int curr
   // score query key
   auto maxScore = std::numeric_limits<float>::min();
   for (auto prevToken = 0; prevToken <= currToken; ++prevToken) {
-    const auto key =
-        std::span{&in[prevToken, headOffset + keyOffset], headDim};
+    const auto key = std::span{&in[prevToken, headOffset + keyOffset], headDim};
     const auto score = dotProduct(query, key) * scale;
     maxScore = std::fmaxf(maxScore, score);
     out[prevToken] = score;

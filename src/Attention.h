@@ -16,6 +16,6 @@ namespace llm {
 // (and of course, no layer mixes information across batch)
 void multiHeadAttentionCausal(view3d<float> out, view3d<const float> in, int numHeads);
 
-}
+} // namespace llm
 
 #endif // LLM_INFERENCE_ATTENTION_H
