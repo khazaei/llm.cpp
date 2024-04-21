@@ -55,7 +55,7 @@ constexpr auto weight = std::array<float, embeddingDim>{
     1.5151961, 0.3698294,  0.2814750,  0.5603455, 0.6310731,
     1.3468844, -0.4519350, -0.4052854, 1.4875096, -0.2229669};
 
-constexpr auto out = std::array<float, totalLen>{
+const auto out = std::vector<float>{
     -6.8014061e-01, 6.4403117e-01,  -1.2956674e+00, -1.2403681e-01, -2.3047555e-02,
     2.5533540e+00,  2.5355646e-01,  1.7445250e+00,  2.7322421e+00,  -1.5770301e+00,
     7.9009211e-01,  9.9713355e-01,  -1.3675367e+00, 5.2357060e-01,  -2.7977607e-01,
@@ -99,7 +99,7 @@ TEST_CASE("Test mean and variance.") {
 
 TEST_CASE("Test layer norm.") {
   const auto inView = std::mdspan{in.data(), batchDim, sentenceLength, embeddingDim};
-  auto outLayerNorm = std::array<float, totalLen>{};
+  auto outLayerNorm = std::vector<float>(totalLen);
   auto outView = std::mdspan{outLayerNorm.data(), batchDim, sentenceLength, embeddingDim};
 
   llm::layerNorm(outView, inView, weight, bias);
