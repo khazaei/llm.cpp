@@ -1,0 +1,5 @@
+# dummy file to stop clang tidy from running in this folder.
+
+Checks: '-*,misc-definitions-in-headers'
+CheckOptions:
+  - { key: HeaderFileExtensions,          value: "x" }

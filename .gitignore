@@ -1,0 +1,41 @@
+# OS X Finder
+.DS_Store
+
+#cmake artifacts
+cmake-build-*/
+build/
+
+#Xcode artifacts
+xcode/
+xcuserdata/
+xcshareddata/
+*.xcworkspacedata
+
+#libraries and executables
+*.a
+*.so
+*.cbp
+
+# JetBrains IDE CLion
+# User-specific stuff:
+.idea/
+
+# Config file
+artifact
+src/config/artifacts
+
+# Log files
+log
+*.log
+
+# Pcap files
+pcap
+
+# Files gen by simcloud script
+console*
+ttys*
+
+html/
+
+__pycache__/
+venv/
