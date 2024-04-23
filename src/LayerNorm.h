@@ -16,8 +16,11 @@ float variance(std::span<const float> in, float mean);
 
 // both in and out are (B,T,C) of the activations
 // weight and bias both length C
-void layerNorm(view3d<float> out, view3d<const float> in, std::span<const float> weights,
-               std::span<const float> bias);
+void layerNorm(view<float, 3> out, view<const float, 3> in,
+               std::span<const float> weights, std::span<const float> bias);
+
+void residual(std::span<float> out, std::span<const float> in1,
+              std::span<const float> in2);
 
 } // namespace llm
 

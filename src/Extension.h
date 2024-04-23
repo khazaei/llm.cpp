@@ -11,16 +11,15 @@
 
 namespace llm {
 
-template <typename T> using view3d = std::mdspan<T, std::dextents<size_t, 3>>;
-template <typename T> using view2d = std::mdspan<T, std::dextents<size_t, 2>>;
+template <typename T, int dim> using view = std::mdspan<T, std::dextents<size_t, dim>>;
 
 #define GET_MACRO(_1, _2, NAME, ...) NAME // NOLINT
 #define LLM_ASSERT(...)                                                                  \
   GET_MACRO(__VA_ARGS__, LLM_ASSERT2, LLM_ASSERT1)(__VA_ARGS__) // NOLINT
 
 #ifdef NDEBUG
-#define LLM_ASSERT1(check) ((check) ? ((void)0) : std::abort())
-#define LLM_ASSERT2(exp, msg) ((exp) ? ((void)0) : std::abort())
+#define LLM_ASSERT1(check)
+#define LLM_ASSERT2(exp, msg)
 #else
 #define LLM_ASSERT1(check) assert((check))         // NOLINT
 #define LLM_ASSERT2(exp, msg) assert((exp) && msg) // NOLINT

@@ -5,6 +5,7 @@
 #include "LayerNorm.h"
 
 namespace {
+
 void layerNormPerChannel(std::span<float> out, std::span<const float> in,
                          std::span<const float> weights, std::span<const float> bias) {
   const auto m = llm::mean(in);
@@ -39,8 +40,8 @@ float variance(std::span<const float> in, const float mean) {
   return sum / static_cast<float>(in.size());
 }
 
-void layerNorm(view3d<float> out, view3d<const float> in, std::span<const float> weights,
-               std::span<const float> bias) {
+void layerNorm(view<float, 3> out, view<const float, 3> in,
+               std::span<const float> weights, std::span<const float> bias) {
   const auto batchSize = out.extent(0);
   const auto sequenceLength = out.extent(1);
   const auto outDim = out.extent(2);
@@ -57,6 +58,16 @@ void layerNorm(view3d<float> out, view3d<const float> in, std::span<const float>
       const auto outView = std::span{&out[batch, token, 0], outDim};
       layerNormPerChannel(outView, inView, weights, bias);
     }
+  }
+}
+
+void residual(std::span<float> out, std::span<const float> in1,
+              std::span<const float> in2) {
+  LLM_ASSERT(out.size() == in1.size());
+  LLM_ASSERT(out.size() == in2.size());
+
+  for (auto i = 0; i < out.size(); ++i) {
+    out[i] = in1[i] + in2[i];
   }
 }
 

@@ -15,7 +15,7 @@ float dotProduct(std::span<const float> in1, std::span<const float> in2) {
   return sum;
 }
 
-float scoreQueryKey(std::span<float> out, view2d<const float> in, const int currToken,
+float scoreQueryKey(std::span<float> out, view<const float, 2> in, const int currToken,
                     const int queryOffset, const int keyOffset, const int headOffset,
                     const size_t headDim) {
 
@@ -55,7 +55,7 @@ void softmax(std::span<float> out, std::span<const float> in, const float maxSco
   }
 }
 
-void weightedSumValues(std::span<float> out, view2d<const float> in,
+void weightedSumValues(std::span<float> out, view<const float, 2> in,
                        std::span<const float> softmaxScores, const int currToken,
                        const int valueOffset, const int headOffset) {
 
@@ -73,7 +73,7 @@ void weightedSumValues(std::span<float> out, view2d<const float> in,
   }
 }
 
-void multiHeadAttentionCausal(view3d<float> out, view3d<const float> in,
+void multiHeadAttentionCausal(view<float, 3> out, view<const float, 3> in,
                               const int numHeads) {
   const auto batchSize = in.extent(0);
   const auto seqLen = in.extent(1);
@@ -94,7 +94,7 @@ void multiHeadAttentionCausal(view3d<float> out, view3d<const float> in,
   auto scoreBuf = std::vector<float>(seqLen);   // xxx optimize out
   auto softmaxBuf = std::vector<float>(seqLen); // xxx optimize out
   for (auto batch = 0; batch < batchSize; ++batch) {
-    const auto inBatch = view2d<const float>{&in[batch, 0, 0], seqLen, inDim};
+    const auto inBatch = view<const float, 2>{&in[batch, 0, 0], seqLen, inDim};
     for (auto currToken = 0; currToken < seqLen; ++currToken) {
       for (auto head = 0; head < numHeads; ++head) {
         const auto headOffset = headDim * head;

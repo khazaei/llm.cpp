@@ -6,7 +6,7 @@
 
 namespace llm {
 
-void matMul(view3d<float> out, view3d<const float> in, view2d<const float> weight,
+void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight,
             std::span<const float> bias) {
   const auto batchSize = out.extent(0);
   const auto seqLen = out.extent(1);
