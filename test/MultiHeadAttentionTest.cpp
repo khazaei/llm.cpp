@@ -2,15 +2,13 @@
 // Created by Hamidreza Khazaei on 4/21/24.
 //
 
-#include <mdspan>
-
 #include "Attention.h"
 #include "Extension.h"
 #include "catch2/catch_test_macros.hpp"
 
 TEST_CASE("Test batch = 1, head = 1,  of multi head attention.") {
-  constexpr auto seqLen = size_t{6};
-  constexpr auto embeddingDim = size_t{3};
+  constexpr auto seqLen = 6;
+  constexpr auto embeddingDim = 3;
   const auto in =
       std::vector<float>{-1.1258398, -1.1523602, 0.5666506,  -1.1258398, -1.1523602,
                          0.5666506,  -1.1258398, -1.1523602, 0.5666506,
@@ -35,9 +33,9 @@ TEST_CASE("Test batch = 1, head = 1,  of multi head attention.") {
       -0.2562208, 1.5995227,  0.2628030, -0.3411601, 0.1019680, 0.0515932,
       0.9885026,  1.5208580,  0.7179147, -0.3141791, 1.0212752, 0.7984132};
 
-  auto outAttention = std::vector<float>(embeddingDim * seqLen);
-  const auto outView = std::mdspan{outAttention.data(), 1, seqLen, embeddingDim};
-  const auto inView = std::mdspan{in.data(), 1, seqLen, 3 * embeddingDim};
+  auto outAttention = std::vector<float>(static_cast<size_t>(embeddingDim) * seqLen);
+  const auto outView = llm::view<float, 3>{outAttention.data(), 1, seqLen, embeddingDim};
+  const auto inView = llm::view<const float, 3>{in.data(), 1, seqLen, 3 * embeddingDim};
 
   const auto numHeads = 1;
   llm::multiHeadAttentionCausal(outView, inView, numHeads);
@@ -85,8 +83,8 @@ TEST_CASE("Test batch = 1, head = 3, of multi head attention") {
   constexpr auto seqLen = size_t{6};
   constexpr auto embeddingDim = size_t{9};
   auto outAttention = std::vector<float>(embeddingDim * seqLen);
-  const auto outView = std::mdspan{outAttention.data(), 1, seqLen, embeddingDim};
-  const auto inView = std::mdspan{in.data(), 1, seqLen, 3 * embeddingDim};
+  const auto outView = llm::view<float, 3>{outAttention.data(), 1, seqLen, embeddingDim};
+  const auto inView = llm::view<const float, 3>{in.data(), 1, seqLen, 3 * embeddingDim};
 
   constexpr auto numHeads = 3;
   llm::multiHeadAttentionCausal(outView, inView, numHeads);

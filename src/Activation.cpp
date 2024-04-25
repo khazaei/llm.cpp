@@ -10,13 +10,20 @@
 
 namespace llm {
 
-void gelu(std::span<float> out, std::span<const float> in) {
+void gelu(view<float, 3> out, view<const float,3> in) {
   static const auto geluScalingFactor = std::sqrtf(2.0F / std::numbers::pi_v<float>);
-  LLM_ASSERT(out.size() == in.size());
-  for (auto i = 0; i < out.size(); ++i) {
-    const auto x = in[i];
-    const auto cube = 0.044715F * x * x * x;
-    out[i] = 0.5F * x * (1.0F + tanhf(geluScalingFactor * (x + cube)));
+  LLM_ASSERT(out.extent(0) == in.extent(0));
+  LLM_ASSERT(out.extent(1) == in.extent(1));
+  LLM_ASSERT(out.extent(2) == in.extent(2));
+
+  for (auto batch = 0; batch < in.extent(0); ++batch) {
+    for (int token = 0; token < in.extent(1); ++token) {
+      for (int c = 0; c < in.extent(2); ++c) {
+        const auto x = in[batch, token, c];
+        const auto cube = 0.044715F * x * x * x;
+        out[batch, token, c] = 0.5F * x * (1.0F + tanhf(geluScalingFactor * (x + cube)));
+      }
+    }
   }
 }
 

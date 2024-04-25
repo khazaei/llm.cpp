@@ -80,12 +80,12 @@ TEST_CASE("Test matmul.") {
       0.6356336,  1.3569322,  0.1171722,  -0.2494671, -0.1588113, 1.1753585,  0.2015544,
       1.7934126,  -0.0116513, 0.5876755,  0.7706643,  0.4386462,  1.2492106,  0.8612962};
 
-  const auto inView = std::mdspan{in.data(), batchDim, sentenceLength, embeddingDim};
+  const auto inView = llm::view<const float, 3>{in.data(), batchDim, sentenceLength, embeddingDim};
   auto outMatMul = std::vector<float>(totalLenOut);
-  auto outView = std::mdspan{outMatMul.data(), batchDim, sentenceLength, outDim};
-  const auto weightView = std::mdspan{weight.data(), outDim, embeddingDim};
+  auto outView = llm::view<float, 3>{outMatMul.data(), batchDim, sentenceLength, outDim};
+  const auto weightView = llm::view<const float, 2>{weight.data(), outDim, embeddingDim};
 
-  llm::matMul(outView, inView, weightView, std::array<float, outDim>{});
+  llm::matMul(outView, inView, weightView);
   constexpr auto eps = 1e-6;
   CHECK(llm::isTensorsEqual(out, outMatMul, eps));
 }
@@ -113,12 +113,12 @@ TEST_CASE("Test matmul with bias.") {
       1.5740719,  1.5322266,  0.5602915,  0.3937797,  0.3571179,  1.3389177,  0.2973936,
       2.7318509,  0.1636431,  1.0307947,  1.4139111,  0.9545754,  1.4127698,  0.9571354};
 
-  const auto inView = std::mdspan{in.data(), batchDim, sentenceLength, embeddingDim};
+  const auto inView = llm::view<const float, 3>{in.data(), batchDim, sentenceLength, embeddingDim};
   auto outMatMul = std::vector<float>(totalLenOut);
-  auto outView = std::mdspan{outMatMul.data(), batchDim, sentenceLength, outDim};
-  const auto weightView = std::mdspan{weight.data(), outDim, embeddingDim};
+  auto outView = llm::view<float, 3>{outMatMul.data(), batchDim, sentenceLength, outDim};
+  const auto weightView = llm::view<const float, 2>{weight.data(), outDim, embeddingDim};
 
-  llm::matMul(outView, inView, weightView, bias);
+  llm::matMul(outView, inView, weightView, llm::view<const float, 1>{bias.data(), bias.size()});
   constexpr auto eps = 1e-6;
   CHECK(llm::isTensorsEqual(outBias, outMatMul, eps));
 }

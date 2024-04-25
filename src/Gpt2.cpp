@@ -3,6 +3,10 @@
 //
 
 #include "Gpt2.h"
+#include "Activation.h"
+#include "Attention.h"
+#include "LayerNorm.h"
+#include "MatMul.h"
 
 // needs to be macros for stringify
 // NOLINT(BEGIN)
@@ -48,19 +52,35 @@ namespace llm::gpt2 {
 size_t getTotalSize(const DimensionMap &dims) {
   auto total = size_t{};
   for (const auto &[name, dim] : dims) {
+    auto prod = size_t{1};
     for (auto el : dim) {
-      total += el;
+      prod *= el;
     }
+    total += prod;
   }
   return total;
 }
 
-Parameters::Parameters(const size_t vocabularySize, const size_t channelDimension,
-                       const size_t maxSequenceLength, const size_t numLayers) {
-  const auto C = channelDimension;
-  const auto V = vocabularySize;
-  const auto maxT = maxSequenceLength;
-  const auto L = numLayers;
+Parameters::Parameters(const int vocabularySize, const int channelDimension,
+                       const int maxSequenceLength, const int numLayers) {
+  computeDimension(vocabularySize, channelDimension, maxSequenceLength, numLayers);
+
+  const auto paramSize = getTotalSize(dims);
+  memory.buffer = std::unique_ptr<float[]>(new float[paramSize]); // NOLINT
+
+  memory.setupViews(memory.buffer.get(), paramSize, dims);
+}
+
+Parameters::Parameters(std::ifstream &in, const int vocabularySize,
+                       const int channelDimension, const int maxSequenceLength,
+                       const int numLayers)
+    : Parameters(vocabularySize, channelDimension, maxSequenceLength, numLayers) {
+
+  in.read(reinterpret_cast<char *>(memory.buffer.get()),          // NOLINT
+          static_cast<long>(sizeof(float)) * getTotalSize(dims)); // NOLINT
+}
+
+void Parameters::computeDimension(const int V, const int C, const int maxT, const int L) {
   dims = {{"wte", {V, C}},
           {"wpe", {maxT, C}},
           {"ln1w", {L, C}},
@@ -71,16 +91,16 @@ Parameters::Parameters(const size_t vocabularySize, const size_t channelDimensio
           {"attprojb", {L, C}},
           {"ln2w", {L, C}},
           {"ln2b", {L, C}},
-          {"fcw", {L, 4 * C, C}},
-          {"fcb", {L, 4 * C}},
-          {"fcprojw", {L, C, 4 * C}},
-          {"fcprojb", {L, C}},
+          {"fcw1", {L, 4 * C, C}},
+          {"fcb1", {L, 4 * C}},
+          {"fcw2", {L, C, 4 * C}},
+          {"fcb2", {L, C}},
           {"lnfw", {C}},
           {"lnfb", {C}}};
 }
 
-void Parameters::Memory::assignMemory(const float *data, const int totalSize,
-                                      const DimensionMap &dimMap) {
+void Parameters::Memory::setupViews(const float *data, size_t totalSize,
+                                    const DimensionMap &dimMap) {
   const auto *const initAddr = data;
   CREATE_VIEW2D(wte, data, dimMap);
   CREATE_VIEW2D(wpe, data, dimMap);
@@ -92,77 +112,200 @@ void Parameters::Memory::assignMemory(const float *data, const int totalSize,
   CREATE_VIEW2D(attprojb, data, dimMap);
   CREATE_VIEW2D(ln2w, data, dimMap);
   CREATE_VIEW2D(ln2b, data, dimMap);
-  CREATE_VIEW3D(fcw, data, dimMap);
-  CREATE_VIEW2D(fcb, data, dimMap);
-  CREATE_VIEW3D(fcprojw, data, dimMap);
-  CREATE_VIEW2D(fcprojb, data, dimMap);
+  CREATE_VIEW3D(fcw1, data, dimMap);
+  CREATE_VIEW2D(fcb1, data, dimMap);
+  CREATE_VIEW3D(fcw2, data, dimMap);
+  CREATE_VIEW2D(fcb2, data, dimMap);
   CREATE_VIEW1D(lnfw, data, dimMap);
   CREATE_VIEW1D(lnfb, data, dimMap);
-  LLM_ASSERT(data - initAddr == totalSize);
+  const auto diff = data - initAddr;
+  LLM_ASSERT(diff == totalSize);
 }
 
-Scratch::Scratch(size_t batchSize, size_t sequenceLength, size_t channelDimension,
-                 size_t numLayers, size_t numHeads, size_t vocabularySize) {
+Scratch::Scratch(int batchSize, int sequenceLength, int channelDimension, int numLayers,
+                 int numHeads, int vocabularySize) {
   const auto B = batchSize;
   const auto T = sequenceLength;
   const auto C = channelDimension;
   const auto L = numLayers;
-  const auto NH = numHeads;
+//  const auto NH = numHeads;
   const auto V = vocabularySize;
 
   dims = {
       {"encoded", {B, T, C}},
       {"ln1", {L, B, T, C}},
-      {"ln1Mean", {L, B, T}},
-      {"ln1Rstd", {L, B, T}},
+//      {"ln1Mean", {L, B, T}},
+//      {"ln1Rstd", {L, B, T}},
       {"qkv", {L, B, T, 3 * C}},
       {"atty", {L, B, T, C}},
-      {"preatt", {L, B, NH, T, T}},
-      {"att", {L, B, NH, T, T}},
+//      {"preatt", {L, B, NH, T, T}},
+//      {"att", {L, B, NH, T, T}},
       {"attproj", {L, B, T, C}},
       {"residual2", {L, B, T, C}},
       {"ln2", {L, B, T, C}},
-      {"ln2Mean", {L, B, T}},
-      {"ln2Rstd", {L, B, T}},
+//      {"ln2Mean", {L, B, T}},
+//      {"ln2Rstd", {L, B, T}},
       {"fch", {L, B, T, 4 * C}},
       {"fchGelu", {L, B, T, 4 * C}},
       {"fcproj", {L, B, T, C}},
       {"residual3", {L, B, T, C}},
       {"lnf", {B, T, C}},
-      {"lnfMean", {B, T}},
-      {"lnfRstd", {B, T}},
+//      {"lnfMean", {B, T}},
+//      {"lnfRstd", {B, T}},
       {"logits", {B, T, V}},
       {"probs", {B, T, V}},
-      {"losses", {B, T}},
+//      {"losses", {B, T}},
   };
+
+  const auto paramSize = getTotalSize(dims);
+  memory.buffer = std::unique_ptr<float[]>(new float[paramSize]); // NOLINT
+  memory.setupViews(memory.buffer.get(), paramSize, dims);
 }
 
-void Scratch::Memory::setupViews(float *data, const int totalSize,
+void Scratch::Memory::setupViews(float *data, const size_t totalSize,
                                  const DimensionMap &dimMap) {
   const auto *const initAddr = data;
   CREATE_VIEW3D(encoded, data, dimMap);
   CREATE_VIEW4D(ln1, data, dimMap);
-  CREATE_VIEW3D(ln1Mean, data, dimMap);
-  CREATE_VIEW3D(ln1Rstd, data, dimMap);
   CREATE_VIEW4D(qkv, data, dimMap);
   CREATE_VIEW4D(atty, data, dimMap);
-  CREATE_VIEW5D(preatt, data, dimMap);
-  CREATE_VIEW5D(att, data, dimMap);
   CREATE_VIEW4D(attproj, data, dimMap);
   CREATE_VIEW4D(residual2, data, dimMap);
   CREATE_VIEW4D(ln2, data, dimMap);
-  CREATE_VIEW3D(ln2Mean, data, dimMap);
-  CREATE_VIEW3D(ln2Rstd, data, dimMap);
   CREATE_VIEW4D(fch, data, dimMap);
   CREATE_VIEW4D(fchGelu, data, dimMap);
   CREATE_VIEW4D(fcproj, data, dimMap);
   CREATE_VIEW4D(residual3, data, dimMap);
   CREATE_VIEW3D(lnf, data, dimMap);
-  CREATE_VIEW2D(lnfMean, data, dimMap);
-  CREATE_VIEW2D(lnfRstd, data, dimMap);
   CREATE_VIEW3D(logits, data, dimMap);
   CREATE_VIEW3D(probs, data, dimMap);
-  CREATE_VIEW2D(losses, data, dimMap);
-  LLM_ASSERT(data - initAddr == totalSize);
+  const auto diff = data - initAddr;
+  LLM_ASSERT(diff == totalSize);
 }
+
+Module::Module(const std::filesystem::path &file) {
+  LLM_ASSERT(std::filesystem::exists(file));
+
+  auto in = std::ifstream{file, std::ios_base::binary};
+
+  auto header = std::vector<int>(256);
+  in.read(reinterpret_cast<char *>(header.data()), // NOLINT
+          static_cast<long>(sizeof(int) * header.size()));
+
+  LLM_ASSERT(header[0] == 20240326); // magic model number
+  LLM_ASSERT(header[1] == 1);        // bad version
+
+  // read in hyperparameters
+  maxSequenceLength = header[2];
+  vocabularySize = header[3];
+  numLayers = header[4];
+  numHeads = header[5];
+  channelDimension = header[6];
+
+  parameters = Parameters{vocabularySize, channelDimension, maxSequenceLength, numLayers};
+}
+
+void Module::forward(view<const int, 2> inputTokenIndices) {
+
+  const auto batchSize = inputTokenIndices.extent(0);
+  const auto seqLen = inputTokenIndices.extent(1);
+  LLM_ASSERT(parameters.getMemory().buffer != nullptr);
+  scratch =
+      Scratch{batchSize, seqLen, channelDimension, numLayers, numHeads, vocabularySize};
+
+  const auto &p = parameters.getMemory();
+  auto &a = scratch.getMemory();
+
+  positionalEncoding(a.encoded, inputTokenIndices, p.wte, p.wpe);
+
+  auto residual = a.encoded;
+  for (auto layer = 0; layer < numLayers; ++layer) {
+
+    // get the views for layer norm
+    const auto ln1W = view<const float, 1>{&p.ln1w[layer, 0], p.ln1w.extent(1)};
+    const auto ln1B = view<const float, 1>{&p.ln1b[layer, 0], p.ln1b.extent(1)};
+    const auto ln1 = view<float, 3>{&a.ln1[layer, 0, 0, 0], a.ln1.extent(1),
+                                    a.ln1.extent(2), a.ln1.extent(3)};
+    layerNorm(ln1, residual, ln1W, ln1B);
+
+    // get the views for embedding -> qkv projection
+    const auto qkv = view<float, 3>{&a.qkv[layer, 0, 0, 0], a.qkv.extent(1),
+                                    a.qkv.extent(2), a.qkv.extent(3)};
+    const auto qkvW =
+        view<const float, 2>{&p.qkvw[layer, 0, 0], p.qkvw.extent(1), p.qkvw.extent(2)};
+    const auto qkvB = view<const float, 1>{&p.qkvb[layer, 0], p.qkvb.extent(1)};
+    // proj C -> 3C
+    matMul(qkv, ln1, qkvW, qkvB);
+
+    // get view for attention
+    const auto attOut = view<float, 3>{&a.atty[layer, 0, 0, 0], a.atty.extent(1),
+                                       a.atty.extent(2), a.atty.extent(3)};
+    multiHeadAttentionCausal(attOut, qkv, numHeads);
+
+    // get view attention projection
+    const auto attProj = view<float, 3>{&a.attproj[layer, 0, 0, 0], a.attproj.extent(1),
+                                        a.attproj.extent(2), a.attproj.extent(3)};
+    const auto attProjW = view<const float, 2>{
+        &p.attprojw[layer, 0, 0], p.attprojw.extent(1), p.attprojw.extent(2)};
+    const auto attProjB =
+        view<const float, 1>{&p.attprojb[layer, 0], p.attprojb.extent(1)};
+    // proj C -> C
+    matMul(attProj, attOut, attProjW, attProjB);
+
+    // get view for residual add
+    const auto residual2 =
+        view<float, 3>{&a.residual2[layer, 0, 0, 0], a.residual2.extent(1),
+                       a.residual2.extent(2), a.residual2.extent(3)};
+    matAdd(residual2, residual, attProj);
+
+    // get the views for layer norm
+    const auto ln2W = view<const float, 1>{&p.ln2w[layer, 0], p.ln2w.extent(1)};
+    const auto ln2B = view<const float, 1>{&p.ln2b[layer, 0], p.ln2b.extent(1)};
+    const auto ln2 = view<float, 3>{&a.ln2[layer, 0, 0, 0], a.ln2.extent(1),
+                                    a.ln2.extent(2), a.ln2.extent(3)};
+    layerNorm(ln2, residual, ln2W, ln2B);
+
+    // get the views for fully connected projection
+    const auto fch = view<float, 3>{&a.fch[layer, 0, 0, 0], a.fch.extent(1),
+                                    a.fch.extent(2), a.fch.extent(3)};
+    const auto fcW = view<const float, 2>{&p.fcw1[layer, 0, 0], p.fcw1.extent(1),
+                                          p.fcw1.extent(2)};
+    const auto fcB = view<const float, 1>{&p.fcb1[layer, 0], p.fcb1.extent(1)};
+    // proj C -> 4C
+    matMul(fch, ln2, fcW, fcB);
+
+    // get view for gelu
+    const auto fchGelu = view<float, 3>{&a.fchGelu[layer, 0, 0, 0], a.fchGelu.extent(1),
+                                        a.fchGelu.extent(2), a.fchGelu.extent(3)};
+    gelu(fchGelu, fch);
+
+    // get view for fully connected proj
+    const auto fcProj = view<float, 3>{&a.fcproj[layer, 0, 0, 0], a.fcproj.extent(1),
+                                       a.fcproj.extent(2), a.fcproj.extent(3)};
+    const auto fcProjW = view<const float, 2>{&p.fcw2[layer, 0, 0],
+                                              p.fcw2.extent(1), p.fcw2.extent(2)};
+    const auto fcProjB = view<const float, 1>{&p.fcb2[layer, 0], p.fcb2.extent(1)};
+    // proj 4C -> C
+    matMul(fcProj, fchGelu, fcProjW, fcProjB);
+
+    // get view for residual
+    const auto residual3 =
+        view<float, 3>{&a.residual3[layer, 0, 0, 0], a.residual3.extent(1),
+                       a.residual3.extent(2), a.residual3.extent(3)};
+    matAdd(residual3, residual2, fcProj);
+
+    residual = residual3;
+  }
+
+  layerNorm(a.lnf, residual, p.lnfw, p.lnfb);
+  matMul(a.logits, a.lnf, p.wte);
+  softmax(a.probs, a.logits);
+}
+
+Module::Module(const int maxSequenceLength, const int vocabularySize, const int numLayers,
+               const int numHeads, const int channelDimension)
+    : maxSequenceLength{maxSequenceLength}, vocabularySize{vocabularySize},
+      numLayers{numLayers}, numHeads{numHeads}, channelDimension{channelDimension},
+      parameters{vocabularySize, channelDimension, maxSequenceLength, numLayers} {}
+
 } // namespace llm::gpt2

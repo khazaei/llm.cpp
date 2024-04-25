@@ -6,8 +6,8 @@
 
 namespace {
 
-void layerNormPerChannel(std::span<float> out, std::span<const float> in,
-                         std::span<const float> weights, std::span<const float> bias) {
+void layerNormPerChannel(llm::view<float, 1> out, llm::view<const float, 1> in,
+                         llm::view<const float, 1> weights, llm::view<const float, 1> bias) {
   const auto m = llm::mean(in);
   const auto var = llm::variance(in, m);
 
@@ -23,25 +23,25 @@ void layerNormPerChannel(std::span<float> out, std::span<const float> in,
 
 namespace llm {
 
-float mean(std::span<const float> in) {
+float mean(view<const float, 1> in) {
   auto sum = 0.0F;
-  for (const auto num : in) {
-    sum += num;
+  for (auto i = 0; i < in.extent(0); ++i) {
+    sum += in[i];
   }
   return sum / static_cast<float>(in.size());
 }
 
-float variance(std::span<const float> in, const float mean) {
+float variance(view<const float, 1> in, const float mean) {
   auto sum = 0.0F;
-  for (const auto num : in) {
-    const auto centered = (num - mean);
+  for (auto i = 0; i < in.extent(0); ++i)  {
+    const auto centered = (in[i] - mean);
     sum += (centered * centered);
   }
   return sum / static_cast<float>(in.size());
 }
 
 void layerNorm(view<float, 3> out, view<const float, 3> in,
-               std::span<const float> weights, std::span<const float> bias) {
+               view<const float, 1> weights, view<const float, 1> bias) {
   const auto batchSize = out.extent(0);
   const auto sequenceLength = out.extent(1);
   const auto outDim = out.extent(2);
@@ -54,20 +54,56 @@ void layerNorm(view<float, 3> out, view<const float, 3> in,
 
   for (auto batch = 0; batch < batchSize; ++batch) {
     for (auto token = 0; token < sequenceLength; ++token) {
-      const auto inView = std::span{&in[batch, token, 0], outDim};
-      const auto outView = std::span{&out[batch, token, 0], outDim};
+      const auto inView = view<const float, 1>{&in[batch, token, 0], outDim};
+      const auto outView = view<float, 1>{&out[batch, token, 0], outDim};
       layerNormPerChannel(outView, inView, weights, bias);
     }
   }
 }
 
-void residual(std::span<float> out, std::span<const float> in1,
-              std::span<const float> in2) {
-  LLM_ASSERT(out.size() == in1.size());
-  LLM_ASSERT(out.size() == in2.size());
+void matAdd(view<float, 3> out, view<const float, 3> in1,
+              view<const float, 3> in2) {
+  const auto batchSize = out.extent(0);
+  const auto seqLen = out.extent(1);
+  const auto embeddingDim = out.extent(2);
 
-  for (auto i = 0; i < out.size(); ++i) {
-    out[i] = in1[i] + in2[i];
+  LLM_ASSERT(in1.extent(0) == batchSize);
+  LLM_ASSERT(in1.extent(1) == seqLen);
+  LLM_ASSERT(in1.extent(2) == embeddingDim);
+  LLM_ASSERT(in2.extent(0) == batchSize);
+  LLM_ASSERT(in2.extent(1) == seqLen);
+  LLM_ASSERT(in2.extent(2) == embeddingDim);
+
+  for (auto batch = 0; batch < batchSize; ++batch) {
+    for (auto token = 0; token < seqLen; ++token) {
+      for (auto c = 0; c < embeddingDim; ++c) {
+        out[batch, token, c] = in1[batch, token, c] + in2[batch, token, c];
+      }
+    }
+  }
+}
+
+void positionalEncoding(view<float, 3> out, view<const int, 2> tokenIndices,
+                        view<const float, 2> tokenEmbedding,
+                        view<const float, 2> positionEmbedding) {
+
+  const auto batchSize = out.extent(0);
+  const auto seqLen = out.extent(1);
+  const auto embeddingDim = out.extent(2);
+  LLM_ASSERT(tokenIndices.extent(0) == batchSize);
+  LLM_ASSERT(tokenIndices.extent(1) == seqLen);
+  LLM_ASSERT(tokenEmbedding.extent(1) == embeddingDim);
+  LLM_ASSERT(positionEmbedding.extent(1) == embeddingDim);
+
+  for (auto batch = 0; batch < batchSize; ++batch) {
+    for (auto tokenPos = 0; tokenPos < seqLen; ++tokenPos) {
+      const auto indexOfToken = tokenIndices[batch, tokenPos];
+      LLM_ASSERT(indexOfToken < tokenEmbedding.extent(0));
+      for (auto c = 0; c < embeddingDim; ++c) {
+        out[batch, tokenPos, c] =
+            tokenEmbedding[indexOfToken, c] + positionEmbedding[tokenPos, c];
+      }
+    }
   }
 }
 

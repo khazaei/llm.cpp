@@ -5,6 +5,8 @@
 #ifndef LLM_INFERENCE_GPT2_H
 #define LLM_INFERENCE_GPT2_H
 
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <string>
 #include <vector>
@@ -13,7 +15,7 @@
 
 namespace llm::gpt2 {
 
-using DimensionMap = std::map<std::string, std::vector<size_t>>;
+using DimensionMap = std::map<std::string, std::vector<int>>;
 [[nodiscard]] size_t getTotalSize(const DimensionMap &dims);
 
 class Parameters {
@@ -29,18 +31,58 @@ public:
     view<const float, 2> attprojb{}; // (L, C)
     view<const float, 2> ln2w{};     // (L, C)
     view<const float, 2> ln2b{};     // (L, C)
-    view<const float, 3> fcw{};      // (L, 4*C, C)
-    view<const float, 2> fcb{};      // (L, 4*C)
-    view<const float, 3> fcprojw{};  // (L, C, 4*C)
-    view<const float, 2> fcprojb{};  // (L, C)
-    std::span<const float> lnfw{};   // (C)
-    std::span<const float> lnfb{};   // (C)
+    view<const float, 3> fcw1{};      // (L, 4*C, C)
+    view<const float, 2> fcb1{};      // (L, 4*C)
+    view<const float, 3> fcw2{};  // (L, C, 4*C)
+    view<const float, 2> fcb2{};  // (L, C)
+    view<const float, 1> lnfw{};   // (C)
+    view<const float, 1> lnfb{};   // (C)
 
-    void assignMemory(const float *data, int totalSize, const DimensionMap &dimMap);
+    void setupViews(const float *data, size_t totalSize, const DimensionMap &dimMap);
+    std::unique_ptr<float[]> buffer{}; // NOLINT
   };
 
-  Parameters(size_t vocabularySize, size_t channelDimension, size_t maxSequenceLength,
-             size_t numLayers);
+  Parameters(int vocabularySize, int channelDimension, int maxSequenceLength,
+             int numLayers);
+  Parameters(std::ifstream &file, int vocabularySize, int channelDimension,
+             int maxSequenceLength, int numLayers);
+  Parameters() = default;
+
+  [[nodiscard]] const Memory &getMemory() const { return memory; }
+  [[nodiscard]] Memory &getMemory() { return memory; }
+  [[nodiscard]] const DimensionMap &getDimMap() const { return dims; }
+
+private:
+  void computeDimension(int V, int C, int maxT, int L);
+  DimensionMap dims{};
+  Memory memory{};
+};
+
+class Scratch {
+public:
+  Scratch(int batchSize, int sequenceLength, int channelDimension,
+          int numLayers, int numHeads, int vocabularySize);
+  Scratch() = default;
+
+  struct Memory {
+    view<float, 3> encoded{};   // (B, T, C)
+    view<float, 4> ln1{};       // (L, B, T, C)
+    view<float, 4> qkv{};       // (L, B, T, 3*C)
+    view<float, 4> atty{};      // (L, B, T, C)
+    view<float, 4> attproj{};   // (L, B, T, C)
+    view<float, 4> residual2{}; // (L, B, T, C)
+    view<float, 4> ln2{};       // (L, B, T, C)
+    view<float, 4> fch{};       // (L, B, T, 4*C)
+    view<float, 4> fchGelu{};   // (L, B, T, 4*C)
+    view<float, 4> fcproj{};    // (L, B, T, C)
+    view<float, 4> residual3{}; // (L, B, T, C)
+    view<float, 3> lnf{};       // (B, T, C)
+    view<float, 3> logits{};    // (B, T, V)
+    view<float, 3> probs{};     // (B, T, V)
+
+    void setupViews(float *data, size_t totalSize, const DimensionMap &dimMap);
+    std::unique_ptr<float[]> buffer{}; // NOLINT
+  };
 
   [[nodiscard]] const Memory &getMemory() const { return memory; }
   [[nodiscard]] Memory &getMemory() { return memory; }
@@ -51,45 +93,21 @@ private:
   Memory memory{};
 };
 
-class Scratch {
-  Scratch(size_t batchSize, size_t sequenceLength, size_t channelDimension,
-          size_t numLayers, size_t numHeads, size_t vocabularySize);
-
-  struct Memory {
-    view<float, 3> encoded{};   // (B, T, C)
-    view<float, 4> ln1{};       // (L, B, T, C)
-    view<float, 3> ln1Mean{};   // (L, B, T)
-    view<float, 3> ln1Rstd{};   // (L, B, T)
-    view<float, 4> qkv{};       // (L, B, T, 3*C)
-    view<float, 4> atty{};      // (L, B, T, C)
-    view<float, 5> preatt{};    // (L, B, NH, T, T)
-    view<float, 5> att{};       // (L, B, NH, T, T)
-    view<float, 4> attproj{};   // (L, B, T, C)
-    view<float, 4> residual2{}; // (L, B, T, C)
-    view<float, 4> ln2{};       // (L, B, T, C)
-    view<float, 3> ln2Mean{};   // (L, B, T)
-    view<float, 3> ln2Rstd{};   // (L, B, T)
-    view<float, 4> fch{};       // (L, B, T, 4*C)
-    view<float, 4> fchGelu{};   // (L, B, T, 4*C)
-    view<float, 4> fcproj{};    // (L, B, T, C)
-    view<float, 4> residual3{}; // (L, B, T, C)
-    view<float, 3> lnf{};       // (B, T, C)
-    view<float, 2> lnfMean{};   // (B, T)
-    view<float, 2> lnfRstd{};   // (B, T)
-    view<float, 3> logits{};    // (B, T, V)
-    view<float, 3> probs{};     // (B, T, V)
-    view<float, 2> losses{};    // (B, T)
-
-    void setupViews(float *data, int totalSize, const DimensionMap &dimMap);
-  };
-
-  [[nodiscard]] const Memory &getMemory() const { return memory; }
-  [[nodiscard]] Memory &getMemory() { return memory; }
-  [[nodiscard]] const DimensionMap &getDimMap() const { return dims; }
+class Module {
+public:
+  explicit Module(const std::filesystem::path &file);
+  Module(int maxSequenceLength, int vocabularySize, int numLayers, int numHeads,
+         int channelDimension);
+  void forward(view<const int, 2> inputTokenIndices);
 
 private:
-  DimensionMap dims{};
-  Memory memory;
+  int maxSequenceLength{};
+  int vocabularySize{};
+  int numLayers{};
+  int numHeads{};
+  int channelDimension{};
+  Parameters parameters{};
+  Scratch scratch{};
 };
 
 } // namespace llm::gpt2

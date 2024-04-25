@@ -11,7 +11,7 @@
 
 namespace llm {
 
-template <typename T, int dim> using view = std::mdspan<T, std::dextents<size_t, dim>>;
+template <typename T, int dim> using view = std::mdspan<T, std::dextents<int, dim>>;
 
 #define GET_MACRO(_1, _2, NAME, ...) NAME // NOLINT
 #define LLM_ASSERT(...)                                                                  \

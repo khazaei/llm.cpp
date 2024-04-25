@@ -3,7 +3,6 @@
 //
 
 #include <array>
-#include <mdspan>
 
 #include "LayerNorm.h"
 #include "catch2/catch_test_macros.hpp"
@@ -90,19 +89,24 @@ const auto out = std::vector<float>{
     2.3851328e+00,  8.7455310e-02,  1.0438852e+00,  2.8805690e+00,  -1.7198651e+00};
 
 TEST_CASE("Test mean and variance.") {
-  const auto m = llm::mean(in);
+  const auto inV = llm::view<const float, 1>{in.data(), in.size()};
+  const auto m = llm::mean(inV);
   CHECK(llm::isApproximatelyEqual(m, 0.0465393));
-  const auto v = llm::variance(in, m);
+  const auto v = llm::variance(inV, m);
   constexpr auto eps = 1e-6;
   CHECK(llm::isApproximatelyEqual(v, 1.0097520, eps));
 }
 
 TEST_CASE("Test layer norm.") {
-  const auto inView = std::mdspan{in.data(), batchDim, sentenceLength, embeddingDim};
+  const auto inView =
+      llm::view<const float, 3>{in.data(), batchDim, sentenceLength, embeddingDim};
   auto outLayerNorm = std::vector<float>(totalLen);
-  auto outView = std::mdspan{outLayerNorm.data(), batchDim, sentenceLength, embeddingDim};
+  const auto outView =
+      llm::view<float, 3>{outLayerNorm.data(), batchDim, sentenceLength, embeddingDim};
+  const auto weightV = llm::view<const float, 1>{weight.data(), weight.size()};
+  const auto biasV = llm::view<const float, 1>{bias.data(), bias.size()};
 
-  llm::layerNorm(outView, inView, weight, bias);
+  llm::layerNorm(outView, inView, weightV, biasV);
   constexpr auto eps = 1e-6;
   CHECK(llm::isTensorsEqual(out, outLayerNorm, eps));
 }

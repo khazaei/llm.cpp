@@ -13,7 +13,9 @@ namespace llm {
 // out will be (B,T,OC)
 // the weights need to be stored row major.
 void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight,
-            std::span<const float> bias);
+            view<const float, 1> bias);
+
+void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight);
 
 } // namespace llm
 
