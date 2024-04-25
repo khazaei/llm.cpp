@@ -96,8 +96,8 @@ void multiHeadAttentionCausal(view<float, 3> out, view<const float, 3> in,
 
   auto scoreBuf = std::vector<float>(seqLen);   // xxx optimize out
   auto softmaxBuf = std::vector<float>(seqLen); // xxx optimize out
-  auto scoreBufV = view<float, 1>{scoreBuf.data(), scoreBuf.size()};
-  auto softmaxBufV = view<float, 1>{softmaxBuf.data(), softmaxBuf.size()};
+  const auto scoreBufV = view<float, 1>{scoreBuf.data(), scoreBuf.size()};
+  const auto softmaxBufV = view<float, 1>{softmaxBuf.data(), softmaxBuf.size()};
 
   for (auto batch = 0; batch < batchSize; ++batch) {
     const auto inBatch = view<const float, 2>{&in[batch, 0, 0], seqLen, inDim};

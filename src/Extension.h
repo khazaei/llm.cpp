@@ -18,8 +18,8 @@ template <typename T, int dim> using view = std::mdspan<T, std::dextents<int, di
   GET_MACRO(__VA_ARGS__, LLM_ASSERT2, LLM_ASSERT1)(__VA_ARGS__) // NOLINT
 
 #ifdef NDEBUG
-#define LLM_ASSERT1(check)
-#define LLM_ASSERT2(exp, msg)
+#define LLM_ASSERT1(check) ((void)(check));
+#define LLM_ASSERT2(exp, msg) ((void)(exp));
 #else
 #define LLM_ASSERT1(check) assert((check))         // NOLINT
 #define LLM_ASSERT2(exp, msg) assert((exp) && msg) // NOLINT

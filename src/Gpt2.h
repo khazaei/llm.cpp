@@ -61,7 +61,7 @@ private:
 class Scratch {
 public:
   Scratch(int batchSize, int sequenceLength, int channelDimension,
-          int numLayers, int numHeads, int vocabularySize);
+          int numLayers, int vocabularySize);
   Scratch() = default;
 
   struct Memory {
