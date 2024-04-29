@@ -127,9 +127,9 @@ TEST_CASE("Test GPT2.") {
 }
 
 // - basic implementation no optimizations 26 seconds.
-// - with open mp running on 4-10 cores you get 12 seconds. The matmul only takes 25% of
-// the cycles, the remaining is the omp setup.
-// - try with intrinsics
+// - with open mp running on 10 cores you get 5 seconds.
+// - Neon intrinsics 9 second.
+// - Neon + omp  2 second.
 TEST_CASE("profile GPT2 124M param.") {
 
   // the binary is usually run in PROJECTROOT/cmake-build-*/test/
