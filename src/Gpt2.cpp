@@ -14,40 +14,33 @@
 // needs to be macros for stringify
 // NOLINT(BEGIN)
 #define CREATE_VIEW1D(varname, data, dims)                                               \
-  {                                                                                      \
+  do {                                                                                   \
     const auto &dim = (dims).at(#varname);                                               \
     (varname) = decltype(varname){(data), dim.at(0)};                                    \
     std::advance((data), (varname).size());                                              \
-  }
+  } while (0)
 
 #define CREATE_VIEW2D(varname, data, dims)                                               \
-  {                                                                                      \
+  do {                                                                                   \
     const auto &dim = (dims).at(#varname);                                               \
     (varname) = decltype(varname){(data), dim.at(0), dim.at(1)};                         \
     std::advance((data), (varname).size());                                              \
-  }
+  } while (0)
 
 #define CREATE_VIEW3D(varname, data, dims)                                               \
-  {                                                                                      \
+  do {                                                                                   \
     const auto &dim = (dims).at(#varname);                                               \
     (varname) = decltype(varname){(data), dim.at(0), dim.at(1), dim.at(2)};              \
     std::advance((data), (varname).size());                                              \
-  }
+  } while (0)
 
 #define CREATE_VIEW4D(varname, data, dims)                                               \
-  {                                                                                      \
+  do {                                                                                   \
     const auto &dim = (dims).at(#varname);                                               \
     (varname) = decltype(varname){(data), dim.at(0), dim.at(1), dim.at(2), dim.at(3)};   \
     std::advance((data), (varname).size());                                              \
-  }
+  } while (0)
 
-#define CREATE_VIEW5D(varname, data, dims)                                               \
-  {                                                                                      \
-    const auto &dim = (dims).at(#varname);                                               \
-    (varname) = decltype(varname){(data),    dim.at(0), dim.at(1),                       \
-                                  dim.at(2), dim.at(3), dim.at(4)};                      \
-    std::advance((data), (varname).size());                                              \
-  }
 // NOLINT(END)
 
 namespace llm::gpt2 {

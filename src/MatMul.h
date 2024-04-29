@@ -9,16 +9,51 @@
 
 namespace llm {
 
-// in is (B,T,C), weight is (OC, C), bias is (OC)
-// out will be (B,T,OC)
-// the weights need to be stored row major.
+/**
+ * @brief matrix multiplication, out = weight * in + bias.
+ *
+ * weights are stored as row major.
+ *
+ * @param out output in the shape of [batch, token, out dimension].
+ * @param in input in the shape of [batch, token, in dimension].
+ * @param weight shape of [out dimension, in dimension].
+ * @param bias shape of out dimension.
+ */
 void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight,
             view<const float, 1> bias);
 
+/**
+ * @brief matrix multiplication, out = weight * in.
+ *
+ * weights are stored as row major.
+ *
+ * @param out output in the shape of [batch, token, out dimension].
+ * @param in input in the shape of [batch, token, in dimension].
+ * @param weight shape of [out dimension, in dimension].
+ */
 void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight);
 
+/**
+ * @brief matrix multiplication using SIMD, out = weight * in + bias.
+ *
+ * weights are stored as row major.
+ *
+ * @param out output in the shape of [batch, token, out dimension].
+ * @param in input in the shape of [batch, token, in dimension].
+ * @param weight shape of [out dimension, in dimension].
+ * @param bias shape of out dimension.
+ */
 void matMulNeon(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight);
 
+/**
+ * @brief matrix multiplication using SIMD, out = weight * in.
+ *
+ * weights are stored as row major.
+ *
+ * @param out output in the shape of [batch, token, out dimension].
+ * @param in input in the shape of [batch, token, in dimension].
+ * @param weight shape of [out dimension, in dimension].
+ */
 void matMulNeon(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight,
                 view<const float, 1> bias);
 

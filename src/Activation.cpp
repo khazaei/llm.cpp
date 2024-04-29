@@ -3,7 +3,6 @@
 //
 
 #include <numbers>
-#include <span>
 
 #include "Activation.h"
 #include "Extension.h"

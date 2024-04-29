@@ -27,7 +27,7 @@ void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> we
 
   for (auto batch = 0; batch < batchSize; ++batch) {
 #ifdef ENABLE_OMP
-    #pragma omp parallel for num_threads(numThreads)
+#pragma omp parallel for num_threads(numThreads)
 #endif
     for (auto token = 0; token < seqLen; ++token) {
       const auto inView = view<const float, 1>{&in[batch, token, 0], inDim};
@@ -56,7 +56,7 @@ void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> we
 
   for (auto batch = 0; batch < batchSize; ++batch) {
 #ifdef ENABLE_OMP
-    #pragma omp parallel for num_threads(numThreads)
+#pragma omp parallel for num_threads(numThreads)
 #endif
     for (auto token = 0; token < seqLen; ++token) {
       const auto inView = view<const float, 1>{&in[batch, token, 0], inDim};
@@ -74,7 +74,8 @@ void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> we
 
 #include <arm_neon.h>
 
-void matMulNeon(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight) {
+void matMulNeon(view<float, 3> out, view<const float, 3> in,
+                view<const float, 2> weight) {
   const auto batchSize = out.extent(0);
   const auto seqLen = out.extent(1);
   const auto outDim = weight.extent(0);
@@ -88,7 +89,7 @@ void matMulNeon(view<float, 3> out, view<const float, 3> in, view<const float, 2
   constexpr auto simdWidth = 4;
   for (auto batch = 0; batch < batchSize; ++batch) {
 #ifdef ENABLE_OMP
-    #pragma omp parallel for num_threads(numThreads)
+#pragma omp parallel for num_threads(numThreads)
 #endif
     for (auto token = 0; token < seqLen; ++token) {
       const auto inView = view<const float, 1>{&in[batch, token, 0], inDim};
@@ -131,7 +132,7 @@ void matMulNeon(view<float, 3> out, view<const float, 3> in, view<const float, 2
   constexpr auto simdWidth = 4;
   for (auto batch = 0; batch < batchSize; ++batch) {
 #ifdef ENABLE_OMP
-    #pragma omp parallel for num_threads(numThreads)
+#pragma omp parallel for num_threads(numThreads)
 #endif
     for (auto token = 0; token < seqLen; ++token) {
       const auto inView = view<const float, 1>{&in[batch, token, 0], inDim};
