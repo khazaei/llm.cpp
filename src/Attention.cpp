@@ -109,13 +109,11 @@ void multiHeadAttentionCausal(view<float, 3> out, view<const float, 3> in,
         const auto maxScore = scoreQueryKey(scoreBufV, inBatch, currToken, queryOffset,
                                             keyOffset, headOffset, headDim);
         // softmax of scores
-        softmax(softmaxBufV,
-                view<const float, 1>{scoreBuf.data(), currToken + 1},
+        softmax(softmaxBufV, view<const float, 1>{scoreBuf.data(), currToken + 1},
                 maxScore);
 
         // weighted sum of value vectors to get attention for single head
-        const auto outView = view<float, 1>{&out[batch, currToken, headOffset],
-                                            headDim};
+        const auto outView = view<float, 1>{&out[batch, currToken, headOffset], headDim};
         weightedSumValues(outView, inBatch, softmaxBufV, currToken, valueOffset,
                           headOffset);
       }

@@ -31,15 +31,15 @@ public:
     view<const float, 2> attprojb{}; // (L, C)
     view<const float, 2> ln2w{};     // (L, C)
     view<const float, 2> ln2b{};     // (L, C)
-    view<const float, 3> fcw1{};      // (L, 4*C, C)
-    view<const float, 2> fcb1{};      // (L, 4*C)
-    view<const float, 3> fcw2{};  // (L, C, 4*C)
-    view<const float, 2> fcb2{};  // (L, C)
-    view<const float, 1> lnfw{};   // (C)
-    view<const float, 1> lnfb{};   // (C)
+    view<const float, 3> fcw1{};     // (L, 4*C, C)
+    view<const float, 2> fcb1{};     // (L, 4*C)
+    view<const float, 3> fcw2{};     // (L, C, 4*C)
+    view<const float, 2> fcb2{};     // (L, C)
+    view<const float, 1> lnfw{};     // (C)
+    view<const float, 1> lnfb{};     // (C)
 
     void setupViews(const float *data, size_t totalSize, const DimensionMap &dimMap);
-    std::unique_ptr<float[]> buffer{}; // NOLINT
+    std::vector<float> buffer{}; // NOLINT
   };
 
   Parameters(int vocabularySize, int channelDimension, int maxSequenceLength,
@@ -60,8 +60,8 @@ private:
 
 class Scratch {
 public:
-  Scratch(int batchSize, int sequenceLength, int channelDimension,
-          int numLayers, int vocabularySize);
+  Scratch(int batchSize, int sequenceLength, int channelDimension, int numLayers,
+          int vocabularySize);
   Scratch() = default;
 
   struct Memory {
@@ -81,7 +81,7 @@ public:
     view<float, 3> probs{};     // (B, T, V)
 
     void setupViews(float *data, size_t totalSize, const DimensionMap &dimMap);
-    std::unique_ptr<float[]> buffer{}; // NOLINT
+    std::vector<float> buffer{}; // NOLINT
   };
 
   [[nodiscard]] const Memory &getMemory() const { return memory; }
@@ -95,17 +95,28 @@ private:
 
 class Module {
 public:
+  struct Config {
+    int maxSequenceLength{};
+    int vocabularySize{};
+    int numLayers{};
+    int numHeads{};
+    int channelDimension{};
+  };
+
   explicit Module(const std::filesystem::path &file);
   Module(int maxSequenceLength, int vocabularySize, int numLayers, int numHeads,
          int channelDimension);
   void forward(view<const int, 2> inputTokenIndices);
+  [[nodiscard]] Config getConfig() const { return config; }
+  [[nodiscard]] Config getConfig() { return config; }
+  [[nodiscard]] const Scratch &getScratch() const { return scratch; }
+  [[nodiscard]] const Parameters &getParameters() const { return parameters; }
+
+  // dangerous, use with care. Only use in unit testing, to reduce run times.
+  void setConfig(const auto &conf) { config = conf; }
 
 private:
-  int maxSequenceLength{};
-  int vocabularySize{};
-  int numLayers{};
-  int numHeads{};
-  int channelDimension{};
+  Config config{};
   Parameters parameters{};
   Scratch scratch{};
 };

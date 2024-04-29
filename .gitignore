@@ -15,6 +15,7 @@ xcshareddata/
 *.a
 *.so
 *.cbp
+*.bin
 
 # JetBrains IDE CLion
 # User-specific stuff:

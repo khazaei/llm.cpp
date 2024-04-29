@@ -11,7 +11,7 @@
 
 namespace llm {
 
-void gelu(view<float, 3> out, view<const float,3> in);
+void gelu(view<float, 3> out, view<const float, 3> in);
 
 // output: out are (B,T,V) of the probabilities (sums to 1.0 in each b,t position)
 // input: logit is (B,T,V) of the un-normalized log probabilities

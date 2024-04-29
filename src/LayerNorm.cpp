@@ -7,7 +7,8 @@
 namespace {
 
 void layerNormPerChannel(llm::view<float, 1> out, llm::view<const float, 1> in,
-                         llm::view<const float, 1> weights, llm::view<const float, 1> bias) {
+                         llm::view<const float, 1> weights,
+                         llm::view<const float, 1> bias) {
   const auto m = llm::mean(in);
   const auto var = llm::variance(in, m);
 
@@ -33,15 +34,15 @@ float mean(view<const float, 1> in) {
 
 float variance(view<const float, 1> in, const float mean) {
   auto sum = 0.0F;
-  for (auto i = 0; i < in.extent(0); ++i)  {
+  for (auto i = 0; i < in.extent(0); ++i) {
     const auto centered = (in[i] - mean);
     sum += (centered * centered);
   }
   return sum / static_cast<float>(in.size());
 }
 
-void layerNorm(view<float, 3> out, view<const float, 3> in,
-               view<const float, 1> weights, view<const float, 1> bias) {
+void layerNorm(view<float, 3> out, view<const float, 3> in, view<const float, 1> weights,
+               view<const float, 1> bias) {
   const auto batchSize = out.extent(0);
   const auto sequenceLength = out.extent(1);
   const auto outDim = out.extent(2);
@@ -61,8 +62,7 @@ void layerNorm(view<float, 3> out, view<const float, 3> in,
   }
 }
 
-void matAdd(view<float, 3> out, view<const float, 3> in1,
-              view<const float, 3> in2) {
+void matAdd(view<float, 3> out, view<const float, 3> in1, view<const float, 3> in2) {
   const auto batchSize = out.extent(0);
   const auto seqLen = out.extent(1);
   const auto embeddingDim = out.extent(2);

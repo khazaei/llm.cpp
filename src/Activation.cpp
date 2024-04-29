@@ -10,7 +10,7 @@
 
 namespace llm {
 
-void gelu(view<float, 3> out, view<const float,3> in) {
+void gelu(view<float, 3> out, view<const float, 3> in) {
   static const auto geluScalingFactor = std::sqrtf(2.0F / std::numbers::pi_v<float>);
   LLM_ASSERT(out.extent(0) == in.extent(0));
   LLM_ASSERT(out.extent(1) == in.extent(1));

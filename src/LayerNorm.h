@@ -16,11 +16,10 @@ float variance(view<const float, 1> in, float mean);
 
 // both in and out are (B,T,C) of the activations
 // weight and bias both length C
-void layerNorm(view<float, 3> out, view<const float, 3> in,
-               view<const float, 1> weights, view<const float, 1> bias);
+void layerNorm(view<float, 3> out, view<const float, 3> in, view<const float, 1> weights,
+               view<const float, 1> bias);
 
-void matAdd(view<float, 3> out, view<const float, 3> in1,
-              view<const float, 3> in2);
+void matAdd(view<float, 3> out, view<const float, 3> in1, view<const float, 3> in2);
 
 // out is (B,T,C). At each position (b,t), a C-dimensional vector summarizing token &
 // position

@@ -66,9 +66,9 @@ Parameters::Parameters(const int vocabularySize, const int channelDimension,
   computeDimension(vocabularySize, channelDimension, maxSequenceLength, numLayers);
 
   const auto paramSize = getTotalSize(dims);
-  memory.buffer = std::unique_ptr<float[]>(new float[paramSize]); // NOLINT
+  memory.buffer = std::vector<float>(paramSize);
 
-  memory.setupViews(memory.buffer.get(), paramSize, dims);
+  memory.setupViews(memory.buffer.data(), paramSize, dims);
 }
 
 Parameters::Parameters(std::ifstream &in, const int vocabularySize,
@@ -76,7 +76,7 @@ Parameters::Parameters(std::ifstream &in, const int vocabularySize,
                        const int numLayers)
     : Parameters(vocabularySize, channelDimension, maxSequenceLength, numLayers) {
 
-  in.read(reinterpret_cast<char *>(memory.buffer.get()),          // NOLINT
+  in.read(reinterpret_cast<char *>(memory.buffer.data()),         // NOLINT
           static_cast<long>(sizeof(float)) * getTotalSize(dims)); // NOLINT
 }
 
@@ -124,25 +124,18 @@ Scratch::Scratch(const int batchSize, const int sequenceLength,
   const auto V = vocabularySize;
 
   dims = {
-      {"encoded", {B, T, C}},
-      {"ln1", {L, B, T, C}},
-      {"qkv", {L, B, T, 3 * C}},
-      {"atty", {L, B, T, C}},
-      {"attproj", {L, B, T, C}},
-      {"residual2", {L, B, T, C}},
-      {"ln2", {L, B, T, C}},
-      {"fch", {L, B, T, 4 * C}},
-      {"fchGelu", {L, B, T, 4 * C}},
-      {"fcproj", {L, B, T, C}},
-      {"residual3", {L, B, T, C}},
-      {"lnf", {B, T, C}},
-      {"logits", {B, T, V}},
-      {"probs", {B, T, V}},
+      {"encoded", {B, T, C}},        {"ln1", {L, B, T, C}},
+      {"qkv", {L, B, T, 3 * C}},     {"atty", {L, B, T, C}},
+      {"attproj", {L, B, T, C}},     {"residual2", {L, B, T, C}},
+      {"ln2", {L, B, T, C}},         {"fch", {L, B, T, 4 * C}},
+      {"fchGelu", {L, B, T, 4 * C}}, {"fcproj", {L, B, T, C}},
+      {"residual3", {L, B, T, C}},   {"lnf", {B, T, C}},
+      {"logits", {B, T, V}},         {"probs", {B, T, V}},
   };
 
   const auto paramSize = getTotalSize(dims);
-  memory.buffer = std::unique_ptr<float[]>(new float[paramSize]); // NOLINT
-  memory.setupViews(memory.buffer.get(), paramSize, dims);
+  memory.buffer = std::vector<float>(paramSize);
+  memory.setupViews(memory.buffer.data(), paramSize, dims);
 }
 
 void Scratch::Memory::setupViews(float *data, const size_t totalSize,
@@ -179,32 +172,31 @@ Module::Module(const std::filesystem::path &file) {
   LLM_ASSERT(header[1] == 1);        // bad version
 
   // read in hyperparameters
-  maxSequenceLength = header[2];
-  vocabularySize = header[3];
-  numLayers = header[4];
-  numHeads = header[5];
-  channelDimension = header[6];
+  config.maxSequenceLength = header[2];
+  config.vocabularySize = header[3];
+  config.numLayers = header[4];
+  config.numHeads = header[5];
+  config.channelDimension = header[6];
 
-  parameters = Parameters{vocabularySize, channelDimension, maxSequenceLength, numLayers};
+  parameters = Parameters{in, config.vocabularySize, config.channelDimension,
+                          config.maxSequenceLength, config.numLayers};
 }
 
 void Module::forward(view<const int, 2> inputTokenIndices) {
 
   const auto batchSize = inputTokenIndices.extent(0);
   const auto seqLen = inputTokenIndices.extent(1);
-  LLM_ASSERT(parameters.getMemory().buffer != nullptr);
-  scratch =
-      Scratch{batchSize, seqLen, channelDimension, numLayers, vocabularySize};
+  LLM_ASSERT(parameters.getMemory().buffer.size() != 0);
+  scratch = Scratch{batchSize, seqLen, config.channelDimension, config.numLayers,
+                    config.vocabularySize};
 
   const auto &p = parameters.getMemory();
   auto &a = scratch.getMemory();
 
   positionalEncoding(a.encoded, inputTokenIndices, p.wte, p.wpe);
-
   auto residual = a.encoded;
-  std::cout<< "start of layer loop" <<std::endl;
-  for (auto layer = 0; layer < numLayers; ++layer) {
 
+  for (auto layer = 0; layer < config.numLayers; ++layer) {
     // get the views for layer norm
     const auto ln1W = view<const float, 1>{&p.ln1w[layer, 0], p.ln1w.extent(1)};
     const auto ln1B = view<const float, 1>{&p.ln1b[layer, 0], p.ln1b.extent(1)};
@@ -224,7 +216,7 @@ void Module::forward(view<const int, 2> inputTokenIndices) {
     // get view for attention
     const auto attOut = view<float, 3>{&a.atty[layer, 0, 0, 0], a.atty.extent(1),
                                        a.atty.extent(2), a.atty.extent(3)};
-    multiHeadAttentionCausal(attOut, qkv, numHeads);
+    multiHeadAttentionCausal(attOut, qkv, config.numHeads);
 
     // get view attention projection
     const auto attProj = view<float, 3>{&a.attproj[layer, 0, 0, 0], a.attproj.extent(1),
@@ -247,7 +239,7 @@ void Module::forward(view<const int, 2> inputTokenIndices) {
     const auto ln2B = view<const float, 1>{&p.ln2b[layer, 0], p.ln2b.extent(1)};
     const auto ln2 = view<float, 3>{&a.ln2[layer, 0, 0, 0], a.ln2.extent(1),
                                     a.ln2.extent(2), a.ln2.extent(3)};
-    layerNorm(ln2, residual, ln2W, ln2B);
+    layerNorm(ln2, residual2, ln2W, ln2B);
 
     // get the views for fully connected projection
     const auto fch = view<float, 3>{&a.fch[layer, 0, 0, 0], a.fch.extent(1),
@@ -280,18 +272,15 @@ void Module::forward(view<const int, 2> inputTokenIndices) {
 
     residual = residual3;
   }
-  std::cout<< "end of layer loop" <<std::endl;
+
   layerNorm(a.lnf, residual, p.lnfw, p.lnfb);
   matMul(a.logits, a.lnf, p.wte);
-  softmax(a.probs, a.logits);
-  std::cout<< "computed soft targets" <<std::endl;
-
+  //  softmax(a.probs, a.logits); // not needed for inference?
 }
 
 Module::Module(const int maxSequenceLength, const int vocabularySize, const int numLayers,
                const int numHeads, const int channelDimension)
-    : maxSequenceLength{maxSequenceLength}, vocabularySize{vocabularySize},
-      numLayers{numLayers}, numHeads{numHeads}, channelDimension{channelDimension},
+    : config{maxSequenceLength, vocabularySize, numLayers, numHeads, channelDimension},
       parameters{vocabularySize, channelDimension, maxSequenceLength, numLayers} {}
 
 } // namespace llm::gpt2
