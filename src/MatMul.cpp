@@ -4,10 +4,11 @@
 
 #include "MatMul.h"
 
+#include <arm_neon.h>
 #define ENABLE_OMP
 #ifdef ENABLE_OMP
 #include <omp.h>
-constexpr auto numThreads = 1;
+constexpr auto numThreads = 10;
 #endif
 
 namespace llm {
@@ -71,8 +72,6 @@ void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> we
     }
   }
 }
-
-#include <arm_neon.h>
 
 void matMulNeon(view<float, 3> out, view<const float, 3> in,
                 view<const float, 2> weight) {
