@@ -1,11 +1,11 @@
 # llm.cpp
 
-C++ implementation of different language models optimized for Apple Silicon. Currently only the forward pass of GPT2 is
+C++ implementation of various language models optimized for Apple Silicon. Currently, only the forward pass of GPT2 is
 implemented.
 
-Inspiration came from [llm.c](https://github.com/karpathy/llm.c)
+Inspiration came from [llm.c](https://github.com/karpathy/llm.c).
 
-Some rough profiling numbers on my mac m1 pro for generating a single token on the 124M parameter GPT2 model.
+Here are some rough profiling numbers on my Mac M1 Pro for generating a single token on the 124M parameter GPT2 model.
 
 | technique          | seconds |
 |--------------------|---------|
