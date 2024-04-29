@@ -3,6 +3,7 @@
 //
 
 #include "MatMul.h"
+#include <omp.h>
 
 namespace llm {
 
@@ -19,10 +20,12 @@ void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> we
   LLM_ASSERT(out.extent(2) == outDim);
   LLM_ASSERT(bias.size() == outDim);
 
+  constexpr auto numThreads = 10;
   for (auto batch = 0; batch < batchSize; ++batch) {
     for (auto token = 0; token < seqLen; ++token) {
       const auto inView = view<const float, 1>{&in[batch, token, 0], inDim};
       const auto outView = view<float, 1>{&out[batch, token, 0], outDim};
+      #pragma omp parallel for num_threads(numThreads)
       for (auto outIdx = 0; outIdx < outDim; ++outIdx) {
         outView[outIdx] = bias[outIdx];
         const auto weightRow = view<const float, 1>{&weight[outIdx, 0], inDim};

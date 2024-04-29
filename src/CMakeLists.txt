@@ -4,3 +4,7 @@ file(GLOB_RECURSE HEADER_LIST LIST_DIRECTORIES false CONFIGURE_DEPENDS ${CMAKE_C
 add_library(source OBJECT)
 target_sources(source PRIVATE ${SOURCE_LIST} PUBLIC ${HEADER_LIST})
 target_include_directories(source PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(source PUBLIC OpenMP::OpenMP_CXX)
+endif()

@@ -12,12 +12,9 @@ TEST_CASE("Sanity test for creating GPT2.") {
   auto numLayers = 2;
   auto numHeads = 2;
   auto channelDimension = 256;
-  std::cout << "creating gpt" << std::endl;
 
   auto gpt = llm::gpt2::Module{maxSequenceLength, vocabularySize, numLayers, numHeads,
                                channelDimension};
-
-  std::cout << "created gpt" << std::endl;
 
   auto in = std::vector<int>(800);
   const auto v = llm::view<const int, 2>{in.data(), 8, 100};
@@ -32,7 +29,7 @@ TEST_CASE("Test GPT2.") {
 
   // the binary is usually run in PROJECTROOT/cmake-build-*/test/
   constexpr auto paramFile = "../../test/input/gpt2_124M.bin";
-  LLM_ASSERT(std::filesystem::exists(paramFile));
+  CHECK(std::filesystem::exists(paramFile));
   auto gpt2 = llm::gpt2::Module{paramFile};
   auto configChange = gpt2.getConfig();
   configChange.numLayers = 1;
@@ -40,7 +37,7 @@ TEST_CASE("Test GPT2.") {
 
   // load additional information that we will use for debugging and error checking
   constexpr auto debugFile = "../../test/input/gpt2_124M_debug_state.bin";
-  LLM_ASSERT(std::filesystem::exists(debugFile));
+  CHECK(std::filesystem::exists(debugFile));
   auto stateFile = std::ifstream{debugFile, std::ios_base::binary};
   auto stateHeader = std::vector<int>(256);
   readIntoVector(stateFile, stateHeader);
@@ -60,7 +57,7 @@ TEST_CASE("Test GPT2.") {
 
   // check positional encoding
   constexpr auto intermediateFile = "../../test/input/act_debug.bin";
-  LLM_ASSERT(std::filesystem::exists(intermediateFile));
+  CHECK(std::filesystem::exists(intermediateFile));
   auto actFile = std::ifstream{intermediateFile, std::ios_base::binary};
   const auto C = gpt2.getConfig().channelDimension;
   auto posOut = std::vector<float>(static_cast<size_t>(B) * T * C);
@@ -127,4 +124,36 @@ TEST_CASE("Test GPT2.") {
                        gpt2.getScratch().getMemory().logits.size()};
   // xxx investigate where resolution is dropping
   CHECK(llm::isTensorsEqual(logitOutFile, logitOutCode, 1e-4));
+}
+
+// - basic implementation no optimizations 26 seconds.
+// - with open mp running on 4-10 cores you get 12 seconds. The matmul only takes 25% of
+// the cycles, the remaining is the omp setup.
+// - try with intrinsics
+TEST_CASE("profile GPT2 124M param.") {
+
+  // the binary is usually run in PROJECTROOT/cmake-build-*/test/
+  constexpr auto paramFile = "../../test/input/gpt2_124M.bin";
+  CHECK(std::filesystem::exists(paramFile));
+  auto gpt2 = llm::gpt2::Module{paramFile};
+
+  // load additional information that we will use for debugging and error checking
+  constexpr auto debugFile = "../../test/input/gpt2_124M_debug_state.bin";
+  CHECK(std::filesystem::exists(debugFile));
+  auto stateFile = std::ifstream{debugFile, std::ios_base::binary};
+  auto stateHeader = std::vector<int>(256);
+  readIntoVector(stateFile, stateHeader);
+
+  CHECK(stateHeader[0] == 20240327); // "Bad magic state file"
+  CHECK(stateHeader[1] == 1);        // "Bad version in state file"
+  const auto B = stateHeader[2];     // batch size, e.g. 4
+  const auto T = stateHeader[3];     // time / sequence length (e.g. 64, up to maxT)
+  std::cout << "[State]\n";
+  std::cout << "batch_size: " << B << "\n";
+  std::cout << "seq_len: " << T << "\n";
+
+  // inputs and expected outputs, only used for error checking
+  auto x = std::vector<int>(static_cast<size_t>(B) * T);
+  readIntoVector(stateFile, x);
+  gpt2.forward(llm::view<int, 2>{x.data(), B, T});
 }
