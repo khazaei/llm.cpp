@@ -2,8 +2,8 @@
 // Created by Hamidreza Khazaei on 4/20/24.
 //
 
-#ifndef LLM_INFERENCE_MATMUL_H
-#define LLM_INFERENCE_MATMUL_H
+#ifndef LLM_INFERENCE_MATOPS_H
+#define LLM_INFERENCE_MATOPS_H
 
 #include "Extension.h"
 
@@ -59,4 +59,4 @@ void matMulNeon(view<float, 3> out, view<const float, 3> in, view<const float, 2
 
 } // namespace llm
 
-#endif // LLM_INFERENCE_MATMUL_H
+#endif // LLM_INFERENCE_MATOPS_H

@@ -6,7 +6,7 @@
 #include "Activation.h"
 #include "Attention.h"
 #include "LayerNorm.h"
-#include "MatMul.h"
+#include "MatOps.h"
 
 // one way to quickly switch the underlying matrix multiplication used.
 #define matMul matMulNeon
@@ -159,10 +159,8 @@ Module::Module(const std::filesystem::path &file) {
   LLM_ASSERT(std::filesystem::exists(file));
 
   auto in = std::ifstream{file, std::ios_base::binary};
-
   auto header = std::vector<int>(256);
-  in.read(reinterpret_cast<char *>(header.data()), // NOLINT
-          static_cast<long>(sizeof(int) * header.size()));
+  readIntoVector(in, header);
 
   LLM_ASSERT(header[0] == 20240326); // magic model number
   LLM_ASSERT(header[1] == 1);        // bad version
@@ -271,12 +269,43 @@ void Module::forward(view<const int, 2> inputTokenIndices) {
 
   layerNorm(a.lnf, residual, p.lnfw, p.lnfb);
   matMul(a.logits, a.lnf, p.wte);
-  //  softmax(a.probs, a.logits); // not needed for inference?
+  // needed for sampling from a distribution, can it be optimized?
+  softmax(a.probs, a.logits);
 }
 
 Module::Module(const int maxSequenceLength, const int vocabularySize, const int numLayers,
                const int numHeads, const int channelDimension)
     : config{maxSequenceLength, vocabularySize, numLayers, numHeads, channelDimension},
       parameters{vocabularySize, channelDimension, maxSequenceLength, numLayers} {}
+
+Tokenizer::Tokenizer(const std::filesystem::path& filename) {
+  auto fileStream = std::ifstream{filename, std::ios::binary};
+  auto header = std::vector<int>(256);
+  readIntoVector(fileStream, header);
+
+  LLM_ASSERT(header[0] == 20240328);
+  LLM_ASSERT(header[1] == 2); // version
+  vocabSize = header[2];
+  eotToken = header[3];
+
+  tokenTable.reserve(vocabSize);
+  for(auto i = 0; i < vocabSize; ++i) {
+    unsigned char length = 0;
+    fileStream.read(reinterpret_cast<char*>(&length), sizeof(char)); // NOLINT
+    LLM_ASSERT(length > 0);
+
+    // read length char into vector and add null terminator.
+    auto stringVec = std::vector<char>(length);
+    readIntoVector(fileStream, stringVec);
+    stringVec.emplace_back('\0');
+
+    tokenTable.emplace_back(stringVec.cbegin(), stringVec.cend());
+  }
+}
+
+std::string Tokenizer::decode(const int tokenId) const {
+  LLM_ASSERT(tokenId < vocabSize);
+  return tokenTable[tokenId];
+}
 
 } // namespace llm::gpt2

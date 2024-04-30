@@ -4,7 +4,7 @@
 
 #include <array>
 
-#include "MatMul.h"
+#include "MatOps.h"
 #include "catch2/catch_test_macros.hpp"
 
 constexpr auto batchDim = size_t{3};

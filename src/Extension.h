@@ -6,8 +6,10 @@
 #define LLM_INFERENCE_EXTENSION_H
 
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include <mdspan>
+#include <random>
 
 namespace llm {
 
@@ -63,6 +65,19 @@ static bool isTensorsEqual(T1 &a, T2 &b,
 
   return true;
 }
+
+/**
+ * @brief reads from binary file into vector.
+ *
+ * @tparam T Data type of vector.
+ * @param file binary input file.
+ * @param vec container for data to be stored into.
+ */
+template <typename T> void readIntoVector(std::ifstream &file, std::vector<T> &vec) {
+  file.read(reinterpret_cast<char *>(vec.data()), sizeof(T) * vec.size()); // NOLINT
+}
+
+int sampleDiscreteDistribution(view<const float, 1> probabilities, std::mt19937_64 &rng);
 
 } // namespace llm
 

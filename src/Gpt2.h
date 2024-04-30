@@ -247,6 +247,19 @@ private:
   Scratch scratch{};
 };
 
+class Tokenizer{
+public:
+  explicit Tokenizer(const std::filesystem::path& filename);
+  [[nodiscard]] std::string decode(int tokenId) const;
+  [[nodiscard]] int getEOT() const { return eotToken; }
+  [[nodiscard]] int getVocabSize() const { return vocabSize; }
+
+private:
+  int eotToken {};
+  int vocabSize {};
+  std::vector<std::string> tokenTable{};
+};
+
 } // namespace llm::gpt2
 
 #endif // LLM_INFERENCE_GPT2_H

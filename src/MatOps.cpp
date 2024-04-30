@@ -2,7 +2,7 @@
 // Created by Hamidreza Khazaei on 4/20/24.
 //
 
-#include "MatMul.h"
+#include "MatOps.h"
 
 #include <arm_neon.h>
 #define ENABLE_OMP
@@ -106,11 +106,11 @@ void matMulNeon(view<float, 3> out, view<const float, 3> in,
         }
 
         // Handle the tail using scalar operations
-        auto scalar_sum = vaddvq_f32(sum); // Sum up the vector elements
+        auto scalarSum = vaddvq_f32(sum); // Sum up the vector elements
         for (; inIdx < inDim; ++inIdx) {
-          scalar_sum += weightRow[inIdx] * inView[inIdx];
+          scalarSum += weightRow[inIdx] * inView[inIdx];
         }
-        outView[outIdx] = scalar_sum;
+        outView[outIdx] = scalarSum;
       }
     }
   }
@@ -149,11 +149,11 @@ void matMulNeon(view<float, 3> out, view<const float, 3> in, view<const float, 2
         }
 
         // Handle the tail using scalar operations
-        auto scalar_sum = vaddvq_f32(sum); // Sum up the vector elements
+        auto scalarSum = vaddvq_f32(sum); // Sum up the vector elements
         for (; inIdx < inDim; ++inIdx) {
-          scalar_sum += weightRow[inIdx] * inView[inIdx];
+          scalarSum += weightRow[inIdx] * inView[inIdx];
         }
-        outView[outIdx] = scalar_sum + bias[outIdx];
+        outView[outIdx] = scalarSum + bias[outIdx];
       }
     }
   }

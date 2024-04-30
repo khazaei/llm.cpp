@@ -3,6 +3,7 @@
 //
 
 #include "Gpt2.h"
+#include "Llm.h"
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("Sanity test for creating GPT2.") {
@@ -21,10 +22,6 @@ TEST_CASE("Sanity test for creating GPT2.") {
   gpt.forward(v);
 }
 
-template <typename T> void readIntoVector(std::ifstream &file, std::vector<T> &vec) {
-  file.read(reinterpret_cast<char *>(vec.data()), sizeof(T) * vec.size()); // NOLINT
-}
-
 TEST_CASE("Test GPT2.") {
 
   // the binary is usually run in PROJECTROOT/cmake-build-*/test/
@@ -40,19 +37,16 @@ TEST_CASE("Test GPT2.") {
   CHECK(std::filesystem::exists(debugFile));
   auto stateFile = std::ifstream{debugFile, std::ios_base::binary};
   auto stateHeader = std::vector<int>(256);
-  readIntoVector(stateFile, stateHeader);
+  llm::readIntoVector(stateFile, stateHeader);
 
   CHECK(stateHeader[0] == 20240327); // "Bad magic state file"
   CHECK(stateHeader[1] == 1);        // "Bad version in state file"
   const auto B = stateHeader[2];     // batch size, e.g. 4
   const auto T = stateHeader[3];     // time / sequence length (e.g. 64, up to maxT)
-  std::cout << "[State]\n";
-  std::cout << "batch_size: " << B << "\n";
-  std::cout << "seq_len: " << T << "\n";
 
   // inputs and expected outputs, only used for error checking
   auto x = std::vector<int>(static_cast<size_t>(B) * T);
-  readIntoVector(stateFile, x);
+  llm::readIntoVector(stateFile, x);
   gpt2.forward(llm::view<int, 2>{x.data(), B, T});
 
   // check positional encoding
@@ -61,7 +55,7 @@ TEST_CASE("Test GPT2.") {
   auto actFile = std::ifstream{intermediateFile, std::ios_base::binary};
   const auto C = gpt2.getConfig().channelDimension;
   auto posOut = std::vector<float>(static_cast<size_t>(B) * T * C);
-  readIntoVector(actFile, posOut);
+  llm::readIntoVector(actFile, posOut);
   const auto gptPosOut =
       std::span<float>{gpt2.getScratch().getMemory().encoded.data_handle(),
                        gpt2.getScratch().getMemory().encoded.size()};
@@ -69,14 +63,14 @@ TEST_CASE("Test GPT2.") {
 
   // check 1st layer norm
   auto lnOut = std::vector<float>(static_cast<size_t>(B) * T * C);
-  readIntoVector(actFile, lnOut);
+  llm::readIntoVector(actFile, lnOut);
   const auto ln1out = std::span<float>{gpt2.getScratch().getMemory().ln1.data_handle(),
                                        gpt2.getScratch().getMemory().ln1.size()};
   CHECK(llm::isTensorsEqual(ln1out, lnOut, 1e-6));
 
   // check qkv projection
   auto qkvOutFile = std::vector<float>(static_cast<size_t>(B) * T * 3 * C);
-  readIntoVector(actFile, qkvOutFile);
+  llm::readIntoVector(actFile, qkvOutFile);
   const auto qkvOutCode =
       std::span<float>{gpt2.getScratch().getMemory().qkv.data_handle(),
                        gpt2.getScratch().getMemory().qkv.size()};
@@ -84,7 +78,7 @@ TEST_CASE("Test GPT2.") {
 
   // check multi head attention
   auto mhOutFile = std::vector<float>(static_cast<size_t>(B) * T * C);
-  readIntoVector(actFile, mhOutFile);
+  llm::readIntoVector(actFile, mhOutFile);
   const auto mhOutCode =
       std::span<float>{gpt2.getScratch().getMemory().atty.data_handle(),
                        gpt2.getScratch().getMemory().atty.size()};
@@ -92,7 +86,7 @@ TEST_CASE("Test GPT2.") {
 
   // check  attention proj
   auto attnOutFile = std::vector<float>(static_cast<size_t>(B) * T * C);
-  readIntoVector(actFile, attnOutFile);
+  llm::readIntoVector(actFile, attnOutFile);
   const auto attnOutCode =
       std::span<float>{gpt2.getScratch().getMemory().attproj.data_handle(),
                        gpt2.getScratch().getMemory().attproj.size()};
@@ -100,7 +94,7 @@ TEST_CASE("Test GPT2.") {
 
   // check first residual
   auto resOutFile = std::vector<float>(static_cast<size_t>(B) * T * C);
-  readIntoVector(actFile, resOutFile);
+  llm::readIntoVector(actFile, resOutFile);
   const auto resOutCode =
       std::span<float>{gpt2.getScratch().getMemory().residual2.data_handle(),
                        gpt2.getScratch().getMemory().residual2.size()};
@@ -108,7 +102,7 @@ TEST_CASE("Test GPT2.") {
 
   // check out of mlp
   auto mlpOutFile = std::vector<float>(static_cast<size_t>(B) * T * C);
-  readIntoVector(actFile, mlpOutFile);
+  llm::readIntoVector(actFile, mlpOutFile);
   const auto mlpOutCode =
       std::span<float>{gpt2.getScratch().getMemory().fcproj.data_handle(),
                        gpt2.getScratch().getMemory().fcproj.size()};
@@ -118,7 +112,7 @@ TEST_CASE("Test GPT2.") {
   // check logits
   // check out of layer norm + mlp + res
   auto logitOutFile = std::vector<float>(static_cast<size_t>(B) * T * C);
-  readIntoVector(actFile, logitOutFile);
+  llm::readIntoVector(actFile, logitOutFile);
   const auto logitOutCode =
       std::span<float>{gpt2.getScratch().getMemory().logits.data_handle(),
                        gpt2.getScratch().getMemory().logits.size()};
@@ -142,18 +136,30 @@ TEST_CASE("profile GPT2 124M param.") {
   CHECK(std::filesystem::exists(debugFile));
   auto stateFile = std::ifstream{debugFile, std::ios_base::binary};
   auto stateHeader = std::vector<int>(256);
-  readIntoVector(stateFile, stateHeader);
+  llm::readIntoVector(stateFile, stateHeader);
 
   CHECK(stateHeader[0] == 20240327); // "Bad magic state file"
   CHECK(stateHeader[1] == 1);        // "Bad version in state file"
   const auto B = stateHeader[2];     // batch size, e.g. 4
   const auto T = stateHeader[3];     // time / sequence length (e.g. 64, up to maxT)
-  std::cout << "[State]\n";
-  std::cout << "batch_size: " << B << "\n";
-  std::cout << "seq_len: " << T << "\n";
 
   // inputs and expected outputs, only used for error checking
   auto x = std::vector<int>(static_cast<size_t>(B) * T);
-  readIntoVector(stateFile, x);
+  llm::readIntoVector(stateFile, x);
   gpt2.forward(llm::view<int, 2>{x.data(), B, T});
+}
+
+TEST_CASE("GPT inference.") {
+
+  // the binary is usually run in PROJECTROOT/cmake-build-*/test/
+  constexpr auto paramFile = "../../test/input/gpt2_124M.bin";
+  CHECK(std::filesystem::exists(paramFile));
+  auto gpt2 = llm::gpt2::Module{paramFile};
+
+  // load additional information that we will use for debugging and error checking
+  constexpr auto tokenizerFile = "../../test/input/gpt2_tokenizer.bin";
+  CHECK(std::filesystem::exists(tokenizerFile));
+  auto tokenizer = llm::gpt2::Tokenizer{tokenizerFile};
+
+  llm::genToken(gpt2, tokenizer, 10);
 }

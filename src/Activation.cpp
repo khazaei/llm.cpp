@@ -29,7 +29,11 @@ void gelu(view<float, 3> out, view<const float, 3> in) {
 void softmax(view<float, 3> probabilities, view<const float, 3> logits) {
   const auto batchSize = logits.extent(0);
   const auto seqLen = logits.extent(1);
-  const auto embedDim = logits.extent(3);
+  const auto embedDim = logits.extent(2);
+
+  LLM_ASSERT(probabilities.extent(0) == batchSize);
+  LLM_ASSERT(probabilities.extent(1) == seqLen);
+  LLM_ASSERT(probabilities.extent(2) == embedDim);
 
   for (auto batch = 0; batch < batchSize; ++batch) {
     for (auto token = 0; token < seqLen; ++token) {
