@@ -128,8 +128,6 @@ TEST_CASE("Test GPT2 single layer.") {
                        gpt2.getScratch().getMemory().probs.size()};
 
   CHECK(llm::isTensorsEqual(probOutFile, probOutCode, 1e-3));
-
-  llm::readIntoVector(actFile, probOutFile);
 }
 
 TEST_CASE("Test GPT2 multi layer.") {
