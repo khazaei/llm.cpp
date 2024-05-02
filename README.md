@@ -1,7 +1,7 @@
 # llm.cpp
 
 C++ implementation of various language models optimized for Apple Silicon. Currently, only the forward pass of GPT2 is
-implemented.
+implemented. GPT2 is bit exact with pytorch implementation.
 
 Inspiration came from [llm.c](https://github.com/karpathy/llm.c).
 
