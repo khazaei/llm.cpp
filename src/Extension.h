@@ -75,6 +75,7 @@ static bool isTensorsEqual(T1 &a, T2 &b,
  */
 template <typename T> void readIntoVector(std::ifstream &file, std::vector<T> &vec) {
   file.read(reinterpret_cast<char *>(vec.data()), sizeof(T) * vec.size()); // NOLINT
+  LLM_ASSERT(!file.eof());
 }
 
 int sampleDiscreteDistribution(view<const float, 1> probabilities, std::mt19937_64 &rng);

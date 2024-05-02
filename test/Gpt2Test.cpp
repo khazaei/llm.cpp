@@ -22,7 +22,7 @@ TEST_CASE("Sanity test for creating GPT2.") {
   gpt.forward(v);
 }
 
-TEST_CASE("Test GPT2.") {
+TEST_CASE("Test GPT2 single layer.") {
 
   // the binary is usually run in PROJECTROOT/cmake-build-*/test/
   constexpr auto paramFile = "../../test/input/gpt2_124M.bin";
@@ -49,10 +49,11 @@ TEST_CASE("Test GPT2.") {
   llm::readIntoVector(stateFile, x);
   gpt2.forward(llm::view<int, 2>{x.data(), B, T});
 
-  // check positional encoding
-  constexpr auto intermediateFile = "../../test/input/act_debug.bin";
+  constexpr auto intermediateFile = "../../test/input/single_layer_debug.bin";
   CHECK(std::filesystem::exists(intermediateFile));
   auto actFile = std::ifstream{intermediateFile, std::ios_base::binary};
+
+  // check positional encoding
   const auto C = gpt2.getConfig().channelDimension;
   auto posOut = std::vector<float>(static_cast<size_t>(B) * T * C);
   llm::readIntoVector(actFile, posOut);
@@ -106,18 +107,77 @@ TEST_CASE("Test GPT2.") {
   const auto mlpOutCode =
       std::span<float>{gpt2.getScratch().getMemory().fcproj.data_handle(),
                        gpt2.getScratch().getMemory().fcproj.size()};
-  // xxx investigate where resolution is dropping
   CHECK(llm::isTensorsEqual(mlpOutFile, mlpOutCode, 1e-4));
 
   // check logits
   // check out of layer norm + mlp + res
-  auto logitOutFile = std::vector<float>(static_cast<size_t>(B) * T * C);
+  const auto V = gpt2.getConfig().vocabularySize;
+  auto logitOutFile = std::vector<float>(static_cast<size_t>(B) * T * V);
   llm::readIntoVector(actFile, logitOutFile);
   const auto logitOutCode =
       std::span<float>{gpt2.getScratch().getMemory().logits.data_handle(),
                        gpt2.getScratch().getMemory().logits.size()};
-  // xxx investigate where resolution is dropping
   CHECK(llm::isTensorsEqual(logitOutFile, logitOutCode, 1e-4));
+
+  // check probs
+  // check out of layer norm + mlp + res
+  auto probOutFile = std::vector<float>(static_cast<size_t>(B) * T * V);
+  llm::readIntoVector(actFile, probOutFile);
+  const auto probOutCode =
+      std::span<float>{gpt2.getScratch().getMemory().probs.data_handle(),
+                       gpt2.getScratch().getMemory().probs.size()};
+
+  CHECK(llm::isTensorsEqual(probOutFile, probOutCode, 1e-3));
+
+  llm::readIntoVector(actFile, probOutFile);
+}
+
+TEST_CASE("Test GPT2 multi layer.") {
+  // the binary is usually run in PROJECTROOT/cmake-build-*/test/
+  constexpr auto paramFile = "../../test/input/gpt2_124M.bin";
+  CHECK(std::filesystem::exists(paramFile));
+  auto gpt2 = llm::gpt2::Module{paramFile};
+
+  // load additional information that we will use for debugging and error checking
+  constexpr auto debugFile = "../../test/input/gpt2_124M_debug_state.bin";
+  CHECK(std::filesystem::exists(debugFile));
+  auto stateFile = std::ifstream{debugFile, std::ios_base::binary};
+  auto stateHeader = std::vector<int>(256);
+  llm::readIntoVector(stateFile, stateHeader);
+
+  CHECK(stateHeader[0] == 20240327); // "Bad magic state file"
+  CHECK(stateHeader[1] == 1);        // "Bad version in state file"
+  const auto B = stateHeader[2];     // batch size, e.g. 4
+  const auto T = stateHeader[3];     // time / sequence length (e.g. 64, up to maxT)
+
+  // inputs and expected outputs, only used for error checking
+  auto x = std::vector<int>(static_cast<size_t>(B) * T);
+  llm::readIntoVector(stateFile, x);
+  gpt2.forward(llm::view<int, 2>{x.data(), B, T});
+
+  constexpr auto intermediateFile = "../../test/input/multi_layer_debug.bin";
+  CHECK(std::filesystem::exists(intermediateFile));
+  auto actFile = std::ifstream{intermediateFile, std::ios_base::binary};
+
+  // check logits
+  const auto V = gpt2.getConfig().vocabularySize;
+  auto logitOutFile = std::vector<float>(static_cast<size_t>(B) * T * V);
+  llm::readIntoVector(actFile, logitOutFile);
+  const auto logitOutCode =
+      std::span<float>{gpt2.getScratch().getMemory().logits.data_handle(),
+                       gpt2.getScratch().getMemory().logits.size()};
+  CHECK(llm::isTensorsEqual(logitOutFile, logitOutCode, 1e-4));
+
+  // check probs
+  auto probOutFile = std::vector<float>(static_cast<size_t>(B) * T * V);
+  llm::readIntoVector(actFile, probOutFile);
+  const auto probOutCode =
+      std::span<float>{gpt2.getScratch().getMemory().probs.data_handle(),
+                       gpt2.getScratch().getMemory().probs.size()};
+
+  CHECK(llm::isTensorsEqual(probOutFile, probOutCode, 1e-3));
+
+  llm::readIntoVector(actFile, probOutFile);
 }
 
 // - basic implementation no optimizations 26 seconds.

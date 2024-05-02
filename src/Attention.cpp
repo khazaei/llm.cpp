@@ -26,7 +26,7 @@ float scoreQueryKey(view<float, 1> out, view<const float, 2> in, const int currT
 
   // find the dot product with all the prev tokens and store max (causal/masked)
   // score query key
-  auto maxScore = std::numeric_limits<float>::min();
+  auto maxScore = std::numeric_limits<float>::lowest();
   for (auto prevToken = 0; prevToken <= currToken; ++prevToken) {
     const auto key =
         view<const float, 1>{&in[prevToken, headOffset + keyOffset], headDim};
@@ -49,7 +49,8 @@ void softmax(view<float, 1> out, view<const float, 1> in, const float maxScore) 
     expSum += expV;
     out[token] = expV;
   }
-  const auto expSumInv = expSum == 0.0F ? 0.0F : 1.0F / expSum;
+  LLM_ASSERT(expSum != 0.0);
+  const auto expSumInv = 1.0F / expSum;
 
   // normalize over sum of exp
   for (auto token = 0; token < numElem; ++token) {

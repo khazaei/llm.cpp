@@ -38,7 +38,7 @@ void softmax(view<float, 3> probabilities, view<const float, 3> logits) {
   for (auto batch = 0; batch < batchSize; ++batch) {
     for (auto token = 0; token < seqLen; ++token) {
       // max is only calculated and subtracted for numerical stability
-      auto maxVal = std::numeric_limits<float>::min();
+      auto maxVal = std::numeric_limits<float>::lowest();
       for (auto i = 0; i < embedDim; ++i) {
         maxVal = std::fmaxf(logits[batch, token, i], maxVal);
       }
@@ -50,6 +50,7 @@ void softmax(view<float, 3> probabilities, view<const float, 3> logits) {
         probabilities[batch, token, i] = expV;
       }
 
+      LLM_ASSERT(sum != 0);
       const auto normalization = 1.0F / sum;
       for (auto i = 0; i < embedDim; ++i) {
         probabilities[batch, token, i] *= normalization;
