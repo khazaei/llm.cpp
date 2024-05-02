@@ -278,7 +278,7 @@ Module::Module(const int maxSequenceLength, const int vocabularySize, const int 
     : config{maxSequenceLength, vocabularySize, numLayers, numHeads, channelDimension},
       parameters{vocabularySize, channelDimension, maxSequenceLength, numLayers} {}
 
-Tokenizer::Tokenizer(const std::filesystem::path& filename) {
+Tokenizer::Tokenizer(const std::filesystem::path &filename) {
   auto fileStream = std::ifstream{filename, std::ios::binary};
   auto header = std::vector<int>(256);
   readIntoVector(fileStream, header);
@@ -292,9 +292,9 @@ Tokenizer::Tokenizer(const std::filesystem::path& filename) {
   LLM_ASSERT(eotToken == 50256);
 
   tokenTable.reserve(vocabSize);
-  for(auto i = 0; i < vocabSize; ++i) {
+  for (auto i = 0; i < vocabSize; ++i) {
     unsigned char length = 0;
-    fileStream.read(reinterpret_cast<char*>(&length), sizeof(char)); // NOLINT
+    fileStream.read(reinterpret_cast<char *>(&length), sizeof(char)); // NOLINT
     LLM_ASSERT(length > 0);
 
     // read length char into vector and add null terminator.

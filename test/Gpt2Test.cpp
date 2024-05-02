@@ -225,7 +225,8 @@ TEST_CASE("Test tokenizer.") {
 }
 
 TEST_CASE("GPT inference.") {
-
+  auto seed = 1U;
+  auto rng = std::mt19937_64{seed};
   // the binary is usually run in PROJECTROOT/cmake-build-*/test/
   constexpr auto paramFile = "../../test/input/gpt2_124M.bin";
   CHECK(std::filesystem::exists(paramFile));
@@ -235,5 +236,12 @@ TEST_CASE("GPT inference.") {
   CHECK(std::filesystem::exists(tokenizerFile));
   auto tokenizer = llm::gpt2::Tokenizer{tokenizerFile};
 
-  llm::genToken(gpt2, tokenizer, 64);
+  const auto tokens = llm::genToken(tokenizer.getEOT(), gpt2, 16, rng);
+
+  auto generatedSentence = std::string{};
+  for (const auto &token : tokens) {
+    generatedSentence += tokenizer.decode(token);
+  }
+  CHECK(generatedSentence ==
+        "<|endoftext|>Budgets, stock rows, and trading strategies: Not required. or");
 }

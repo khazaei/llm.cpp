@@ -13,7 +13,8 @@
 namespace llm {
 
 // template <typename Model, typename Tokenizer>
-void genToken(gpt2::Module &model, const gpt2::Tokenizer &tokenizer, int numTokens);
+std::vector<int> genToken(int EOT, gpt2::Module &model, int numTokens,
+                          std::mt19937_64 rng = std::mt19937_64{std::random_device{}()});
 
 } // namespace llm
 

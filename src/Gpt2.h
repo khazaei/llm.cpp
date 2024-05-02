@@ -247,16 +247,15 @@ private:
   Scratch scratch{};
 };
 
-class Tokenizer{
+class Tokenizer {
 public:
-  explicit Tokenizer(const std::filesystem::path& filename);
+  explicit Tokenizer(const std::filesystem::path &filename);
   [[nodiscard]] std::string decode(int tokenId) const;
   [[nodiscard]] int getEOT() const { return eotToken; }
-  [[nodiscard]] int getVocabSize() const { return vocabSize; }
 
 private:
-  int eotToken {};
-  int vocabSize {};
+  int eotToken{};
+  int vocabSize{};
   std::vector<std::string> tokenTable{};
 };
 
