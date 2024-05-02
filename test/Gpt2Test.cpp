@@ -161,5 +161,5 @@ TEST_CASE("GPT inference.") {
   CHECK(std::filesystem::exists(tokenizerFile));
   auto tokenizer = llm::gpt2::Tokenizer{tokenizerFile};
 
-  llm::genToken(gpt2, tokenizer, 10);
+  llm::genToken(gpt2, tokenizer, 64);
 }

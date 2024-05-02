@@ -286,7 +286,10 @@ Tokenizer::Tokenizer(const std::filesystem::path& filename) {
   LLM_ASSERT(header[0] == 20240328);
   LLM_ASSERT(header[1] == 2); // version
   vocabSize = header[2];
+  LLM_ASSERT(vocabSize == 50257);
+
   eotToken = header[3];
+  LLM_ASSERT(eotToken == 50256);
 
   tokenTable.reserve(vocabSize);
   for(auto i = 0; i < vocabSize; ++i) {
@@ -297,7 +300,6 @@ Tokenizer::Tokenizer(const std::filesystem::path& filename) {
     // read length char into vector and add null terminator.
     auto stringVec = std::vector<char>(length);
     readIntoVector(fileStream, stringVec);
-    stringVec.emplace_back('\0');
 
     tokenTable.emplace_back(stringVec.cbegin(), stringVec.cend());
   }
