@@ -209,6 +209,21 @@ TEST_CASE("profile GPT2 124M param.") {
   gpt2.forward(llm::view<int, 2>{x.data(), B, T});
 }
 
+TEST_CASE("Test tokenizer.") {
+  constexpr auto tokenizerFile = "../../test/input/gpt2_tokenizer.bin";
+  CHECK(std::filesystem::exists(tokenizerFile));
+  auto tokenizer = llm::gpt2::Tokenizer{tokenizerFile};
+
+  CHECK(tokenizer.decode(0) == "!");
+  CHECK(tokenizer.decode(11) == ",");
+  CHECK(tokenizer.decode(1001) == " Se");
+  CHECK(tokenizer.decode(2222) == " bring");
+  CHECK(tokenizer.decode(10565) == "leton");
+  CHECK(tokenizer.decode(37456) == " lambda");
+  CHECK(tokenizer.decode(50000) == " grids");
+  CHECK(tokenizer.decode(50256) == "<|endoftext|>");
+}
+
 TEST_CASE("GPT inference.") {
 
   // the binary is usually run in PROJECTROOT/cmake-build-*/test/
@@ -216,7 +231,6 @@ TEST_CASE("GPT inference.") {
   CHECK(std::filesystem::exists(paramFile));
   auto gpt2 = llm::gpt2::Module{paramFile};
 
-  // load additional information that we will use for debugging and error checking
   constexpr auto tokenizerFile = "../../test/input/gpt2_tokenizer.bin";
   CHECK(std::filesystem::exists(tokenizerFile));
   auto tokenizer = llm::gpt2::Tokenizer{tokenizerFile};
