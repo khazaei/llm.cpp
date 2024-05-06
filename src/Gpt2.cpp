@@ -2,9 +2,9 @@
 // Created by Hamidreza Khazaei on 4/23/24.
 //
 
-#include "Gpt2.h"
 #include "Activation.h"
 #include "Attention.h"
+#include "Gpt2.h"
 #include "LayerNorm.h"
 #include "MatOps.h"
 

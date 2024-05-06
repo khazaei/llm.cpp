@@ -57,5 +57,6 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/external/catch2/extras")
 
 add_subdirectory(external/catch2)
 add_subdirectory(external/metal-cmake)
+add_subdirectory(shader)
 add_subdirectory(src)
 add_subdirectory(test)

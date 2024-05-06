@@ -4,6 +4,9 @@ add_executable(testapp ${TEST_SOURCES})
 
 target_link_libraries(testapp PRIVATE Catch2::Catch2)
 target_link_libraries(testapp PRIVATE Source)
+target_link_libraries(testapp PRIVATE METAL_CPP)
+# Make sure the C++ target depends on the Metal library
+add_dependencies(testapp MetalLibrary)
 
 include(CTest)
 include(Catch)
