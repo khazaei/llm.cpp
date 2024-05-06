@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-Werror)
 add_compile_options(-Wall)
-# disable this warning because of size in c++ is unsigned and everythig else is signed.
+# disable this warning because of size in c++ is unsigned and everything else is signed.
 add_compile_options(-Wno-sign-compare)
 
 # sanitizer flags
@@ -56,5 +56,6 @@ enable_testing()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/external/catch2/extras")
 
 add_subdirectory(external/catch2)
+add_subdirectory(external/metal-cmake)
 add_subdirectory(src)
 add_subdirectory(test)

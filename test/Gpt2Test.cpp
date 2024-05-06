@@ -223,7 +223,7 @@ TEST_CASE("Test tokenizer.") {
 }
 
 TEST_CASE("GPT inference.") {
-  auto seed = 1U;
+  auto seed = 3U;
   auto rng = std::mt19937_64{seed};
   // the binary is usually run in PROJECTROOT/cmake-build-*/test/
   constexpr auto paramFile = "../../test/input/gpt2_124M.bin";
@@ -241,5 +241,5 @@ TEST_CASE("GPT inference.") {
     generatedSentence += tokenizer.decode(token);
   }
   CHECK(generatedSentence ==
-        "<|endoftext|>Budgets, stock rows, and trading strategies: Not required. or");
+        "<|endoftext|>How to Make The Original Garlic Sweet Potato It's quite simple if you");
 }
