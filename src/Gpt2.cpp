@@ -7,9 +7,12 @@
 #include "Gpt2.h"
 #include "LayerNorm.h"
 #include "MatOps.h"
+#include "MetalCompute.h"
 
 // one way to quickly switch the underlying matrix multiplication used.
-#define matMul matMulNeon
+//#define matMul matMul
+//#define matMul matMulNeon
+#define matMul metal.run
 
 // needs to be macros for stringify
 // NOLINT(BEGIN)
@@ -177,6 +180,9 @@ Module::Module(const std::filesystem::path &file) {
 }
 
 void Module::forward(view<const int, 2> inputTokenIndices) {
+
+  auto metal = MetalCompute{};
+  metal.setup();
 
   const auto batchSize = inputTokenIndices.extent(0);
   const auto seqLen = inputTokenIndices.extent(1);

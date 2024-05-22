@@ -26,6 +26,7 @@ endfunction()
 # Compile shaders and collect output files
 set(SHADERS
         "${CMAKE_SOURCE_DIR}/shader/Compute.metal"
+        "${CMAKE_SOURCE_DIR}/shader/MatMulShader.metal"
 )
 set(OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/shader")
 
