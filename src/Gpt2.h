@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "Extension.h"
+#include "MetalCompute.h"
 
 namespace llm::gpt2 {
 
@@ -245,6 +246,7 @@ private:
   Config config{};
   Parameters parameters{};
   Scratch scratch{};
+  MetalCompute metal{};
 };
 
 class Tokenizer {

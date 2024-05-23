@@ -18,11 +18,8 @@ public:
            view<const float, 1> bias);
 
 private:
-  MTL::CommandQueue *commandQueueMatMul{};
-  MTL::CommandQueue *commandQueueMatMulBias{};
+  MTL::CommandQueue *commandQueue{};
   MTL::Device *device{};
-  MTL::ComputePipelineState *computePipelineState{};
-  MTL::ComputePipelineState *computePipelineStateBias{};
 };
 
 } // namespace llm

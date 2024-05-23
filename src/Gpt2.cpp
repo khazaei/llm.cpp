@@ -177,12 +177,10 @@ Module::Module(const std::filesystem::path &file) {
 
   parameters = Parameters{in, config.vocabularySize, config.channelDimension,
                           config.maxSequenceLength, config.numLayers};
+  metal.setup();
 }
 
 void Module::forward(view<const int, 2> inputTokenIndices) {
-
-  auto metal = MetalCompute{};
-  metal.setup();
 
   const auto batchSize = inputTokenIndices.extent(0);
   const auto seqLen = inputTokenIndices.extent(1);
@@ -282,7 +280,9 @@ void Module::forward(view<const int, 2> inputTokenIndices) {
 Module::Module(const int maxSequenceLength, const int vocabularySize, const int numLayers,
                const int numHeads, const int channelDimension)
     : config{maxSequenceLength, vocabularySize, numLayers, numHeads, channelDimension},
-      parameters{vocabularySize, channelDimension, maxSequenceLength, numLayers} {}
+      parameters{vocabularySize, channelDimension, maxSequenceLength, numLayers} {
+  metal.setup();
+}
 
 Tokenizer::Tokenizer(const std::filesystem::path &filename) {
   auto fileStream = std::ifstream{filename, std::ios::binary};
