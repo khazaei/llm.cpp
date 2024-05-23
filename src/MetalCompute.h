@@ -20,6 +20,15 @@ public:
 private:
   MTL::CommandQueue *commandQueue{};
   MTL::Device *device{};
+
+  std::tuple<MTL::ComputeCommandEncoder *, MTL::CommandBuffer *,
+             MTL::ComputePipelineState *>
+  getComputeResources(const std::string &functNameString);
+
+  static void launchAndWait(unsigned int numThreads,
+                            MTL::ComputeCommandEncoder *computeEncoder,
+                            MTL::CommandBuffer *commandBuffer,
+                            const MTL::ComputePipelineState *computePipelineState);
 };
 
 } // namespace llm

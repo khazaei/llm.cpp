@@ -17,8 +17,9 @@ void MetalCompute::setup() {
   LLM_ASSERT(commandQueue != nullptr);
 }
 
-void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
-                       view<const float, 2> weight) {
+std::tuple<MTL::ComputeCommandEncoder *, MTL::CommandBuffer *,
+           MTL::ComputePipelineState *>
+MetalCompute::getComputeResources(const std::string &functNameString) {
   const auto *libraryPath = NS::String::string(metalLibName, NS::ASCIIStringEncoding);
 
   NS::Error *error = nullptr;
@@ -26,11 +27,12 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
   LLM_ASSERT(error == nullptr);
   LLM_ASSERT(lib != nullptr);
 
-  const auto *functionName = NS::String::string("matMul", NS::ASCIIStringEncoding);
+  const auto *functionName =
+      NS::String::string(functNameString.c_str(), NS::ASCIIStringEncoding);
   const auto *computeFunction = lib->newFunction(functionName);
   LLM_ASSERT(computeFunction != nullptr);
 
-  auto* computePipelineState = device->newComputePipelineState(computeFunction, &error);
+  auto *computePipelineState = device->newComputePipelineState(computeFunction, &error);
 
   LLM_ASSERT(computePipelineState != nullptr);
   LLM_ASSERT(error == nullptr);
@@ -39,26 +41,32 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
   LLM_ASSERT(commandBuffer != nullptr);
   auto *computeEncoder = commandBuffer->computeCommandEncoder();
   LLM_ASSERT(computeEncoder != nullptr);
+  computeEncoder->setComputePipelineState(computePipelineState);
+  return {computeEncoder, commandBuffer, computePipelineState};
+}
+
+template <typename BufferType>
+MTL::Buffer *mapToDevice(const BufferType &buff, MTL::Device *device) {
+  return device->newBuffer(buff.data_handle(), buff.size() * sizeof(float),
+                           MTL::ResourceStorageModeShared,
+                           ^(void *pointer, NS::UInteger length){
+                           });
+}
+
+void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
+                       view<const float, 2> weight) {
 
   const auto batchSize = out.extent(0);
   const auto seqLen = out.extent(1);
   const auto outDim = weight.extent(0);
   const auto inDim = weight.extent(1);
 
-  auto *outMetal = device->newBuffer(out.data_handle(), out.size() * sizeof(float),
-                                     MTL::ResourceStorageModeShared,
-                                     ^(void *pointer, NS::UInteger length){
-                                     });
-  auto *inMetal = device->newBuffer(in.data_handle(), in.size() * sizeof(float),
-                                    MTL::ResourceStorageModeShared,
-                                    ^(void *pointer, NS::UInteger length){
-                                    });
-  auto *weightMetal = device->newBuffer(
-      weight.data_handle(), weight.size() * sizeof(float), MTL::ResourceStorageModeShared,
-      ^(void *pointer, NS::UInteger length){
-      });
+  const auto *outMetal = mapToDevice(out, device);
+  const auto *inMetal = mapToDevice(in, device);
+  const auto *weightMetal = mapToDevice(weight, device);
 
-  computeEncoder->setComputePipelineState(computePipelineState);
+  const auto &[computeEncoder, commandBuffer, computePipelineState] =
+      getComputeResources("matMul");
   computeEncoder->setBuffer(outMetal, 0, 0);
   computeEncoder->setBuffer(inMetal, 0, 1);
   computeEncoder->setBuffer(weightMetal, 0, 2);
@@ -67,62 +75,24 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
   computeEncoder->setBytes(&outDim, sizeof(outDim), 5);
   computeEncoder->setBytes(&inDim, sizeof(inDim), 6);
 
-  const auto gridSize = MTL::Size(out.size(), 1, 1);
-  const auto threadGroupSize = std::min(
-      computePipelineState->maxTotalThreadsPerThreadgroup(), NS::UInteger{out.size()});
-  const auto groupSize = MTL::Size(threadGroupSize, 1, 1);
-
-  computeEncoder->dispatchThreads(gridSize, groupSize);
-  computeEncoder->endEncoding();
-  commandBuffer->commit();
-  commandBuffer->waitUntilCompleted();
+  launchAndWait(out.size(), computeEncoder, commandBuffer, computePipelineState);
 }
 
 void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
                        view<const float, 2> weight, view<const float, 1> bias) {
-  const auto *libraryPath = NS::String::string(metalLibName, NS::ASCIIStringEncoding);
-
-  NS::Error *error = nullptr;
-  auto *lib = device->newLibrary(libraryPath, &error);
-  const auto *functionName =
-      NS::String::string("matMulWithBias", NS::ASCIIStringEncoding);
-  const auto *computeFunction = lib->newFunction(functionName);
-  LLM_ASSERT(computeFunction != nullptr);
-
-  auto* computePipelineState = device->newComputePipelineState(computeFunction, &error);
-
-  LLM_ASSERT(computePipelineState != nullptr);
-  LLM_ASSERT(error == nullptr);
-
-  auto *commandBuffer = commandQueue->commandBuffer();
-  LLM_ASSERT(commandBuffer != nullptr);
-
-  auto *computeEncoder = commandBuffer->computeCommandEncoder();
-  LLM_ASSERT(computeEncoder != nullptr);
 
   const auto batchSize = out.extent(0);
   const auto seqLen = out.extent(1);
   const auto outDim = weight.extent(0);
   const auto inDim = weight.extent(1);
 
-  auto *outMetal = device->newBuffer(out.data_handle(), out.size() * sizeof(float),
-                                     MTL::ResourceStorageModeShared,
-                                     ^(void *pointer, NS::UInteger length){
-                                     });
-  auto *inMetal = device->newBuffer(in.data_handle(), in.size() * sizeof(float),
-                                    MTL::ResourceStorageModeShared,
-                                    ^(void *pointer, NS::UInteger length){
-                                    });
-  auto *weightMetal = device->newBuffer(
-      weight.data_handle(), weight.size() * sizeof(float), MTL::ResourceStorageModeShared,
-      ^(void *pointer, NS::UInteger length){
-      });
-  auto *biasMetal = device->newBuffer(bias.data_handle(), bias.size() * sizeof(float),
-                                      MTL::ResourceStorageModeShared,
-                                      ^(void *pointer, NS::UInteger length){
-                                      });
+  const auto *outMetal = mapToDevice(out, device);
+  const auto *inMetal = mapToDevice(in, device);
+  const auto *weightMetal = mapToDevice(weight, device);
+  const auto *biasMetal = mapToDevice(bias, device);
 
-  computeEncoder->setComputePipelineState(computePipelineState);
+  const auto &[computeEncoder, commandBuffer, computePipelineState] =
+      getComputeResources("matMulWithBias");
   computeEncoder->setBuffer(outMetal, 0, 0);
   computeEncoder->setBuffer(inMetal, 0, 1);
   computeEncoder->setBuffer(weightMetal, 0, 2);
@@ -132,10 +102,16 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
   computeEncoder->setBytes(&outDim, sizeof(outDim), 6);
   computeEncoder->setBytes(&inDim, sizeof(inDim), 7);
 
-  const auto gridSize = MTL::Size(out.size(), 1, 1);
-  const auto threadGroupSize =
-      std::min(computePipelineState->maxTotalThreadsPerThreadgroup(),
-               NS::UInteger{out.size()});
+  launchAndWait(out.size(), computeEncoder, commandBuffer, computePipelineState);
+}
+
+void MetalCompute::launchAndWait(const unsigned int numThreads,
+                                 MTL::ComputeCommandEncoder *computeEncoder,
+                                 MTL::CommandBuffer *commandBuffer,
+                                 const MTL::ComputePipelineState *computePipelineState) {
+  const auto gridSize = MTL::Size(numThreads, 1, 1);
+  const auto threadGroupSize = std::min(
+      computePipelineState->maxTotalThreadsPerThreadgroup(), NS::UInteger{numThreads});
   const auto groupSize = MTL::Size(threadGroupSize, 1, 1);
 
   computeEncoder->dispatchThreads(gridSize, groupSize);
