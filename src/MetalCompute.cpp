@@ -59,17 +59,18 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
   const auto outDim = weight.extent(0);
   const auto inDim = weight.extent(1);
 
-  auto *outMetal =
-      device->newBuffer(out.size() * sizeof(float), MTL::ResourceStorageModeShared);
-  auto *inMetal =
-      device->newBuffer(in.size() * sizeof(float), MTL::ResourceStorageModeShared);
-  auto *weightMetal =
-      device->newBuffer(weight.size() * sizeof(float), MTL::ResourceStorageModeShared);
-
-  std::memcpy(static_cast<float *>(inMetal->contents()), in.data_handle(),
-              in.size() * sizeof(float));
-  std::memcpy(static_cast<float *>(weightMetal->contents()), weight.data_handle(),
-              weight.size() * sizeof(float));
+  auto *outMetal = device->newBuffer(out.data_handle(), out.size() * sizeof(float),
+                                     MTL::ResourceStorageModeShared,
+                                     ^(void *pointer, NS::UInteger length){
+                                     });
+  auto *inMetal = device->newBuffer(in.data_handle(), in.size() * sizeof(float),
+                                    MTL::ResourceStorageModeShared,
+                                    ^(void *pointer, NS::UInteger length){
+                                    });
+  auto *weightMetal = device->newBuffer(
+      weight.data_handle(), weight.size() * sizeof(float), MTL::ResourceStorageModeShared,
+      ^(void *pointer, NS::UInteger length){
+      });
 
   computeEncoder->setComputePipelineState(computePipelineState);
   computeEncoder->setBuffer(outMetal, 0, 0);
@@ -89,9 +90,6 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
   computeEncoder->endEncoding();
   commandBuffer->commit();
   commandBuffer->waitUntilCompleted();
-
-  std::memcpy(out.data_handle(), static_cast<float *>(outMetal->contents()),
-              out.size() * sizeof(float));
 }
 
 void MetalCompute::run(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight,
@@ -108,21 +106,22 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in, view<const f
   const auto outDim = weight.extent(0);
   const auto inDim = weight.extent(1);
 
-  auto *outMetal =
-      device->newBuffer(out.size() * sizeof(float), MTL::ResourceStorageModeShared);
-  auto *inMetal =
-      device->newBuffer(in.size() * sizeof(float), MTL::ResourceStorageModeShared);
-  auto *weightMetal =
-      device->newBuffer(weight.size() * sizeof(float), MTL::ResourceStorageModeShared);
-  auto *biasMetal =
-      device->newBuffer(bias.size() * sizeof(float), MTL::ResourceStorageModeShared);
-
-  std::memcpy(static_cast<float *>(inMetal->contents()), in.data_handle(),
-              in.size() * sizeof(float));
-  std::memcpy(static_cast<float *>(weightMetal->contents()), weight.data_handle(),
-              weight.size() * sizeof(float));
-  std::memcpy(static_cast<float *>(biasMetal->contents()), bias.data_handle(),
-              bias.size() * sizeof(float));
+  auto *outMetal = device->newBuffer(out.data_handle(), out.size() * sizeof(float),
+                                     MTL::ResourceStorageModeShared,
+                                     ^(void *pointer, NS::UInteger length){
+                                     });
+  auto *inMetal = device->newBuffer(in.data_handle(), in.size() * sizeof(float),
+                                    MTL::ResourceStorageModeShared,
+                                    ^(void *pointer, NS::UInteger length){
+                                    });
+  auto *weightMetal = device->newBuffer(
+      weight.data_handle(), weight.size() * sizeof(float), MTL::ResourceStorageModeShared,
+      ^(void *pointer, NS::UInteger length){
+      });
+  auto *biasMetal = device->newBuffer(bias.data_handle(), bias.size() * sizeof(float),
+                                      MTL::ResourceStorageModeShared,
+                                      ^(void *pointer, NS::UInteger length){
+                                      });
 
   computeEncoder->setComputePipelineState(computePipelineStateBias);
   computeEncoder->setBuffer(outMetal, 0, 0);
@@ -143,9 +142,6 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in, view<const f
   computeEncoder->endEncoding();
   commandBuffer->commit();
   commandBuffer->waitUntilCompleted();
-
-  std::memcpy(out.data_handle(), static_cast<float *>(outMetal->contents()),
-              out.size() * sizeof(float));
 }
 
 } // namespace llm

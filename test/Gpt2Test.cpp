@@ -182,6 +182,7 @@ TEST_CASE("Test GPT2 multi layer.") {
 // - with open mp running on 10 cores you get 5 seconds.
 // - Neon intrinsics 9 second.
 // - Neon + omp  2 second.
+// - Metal M1 gpu 3.9 second.
 TEST_CASE("profile GPT2 124M param.") {
 
   // the binary is usually run in PROJECTROOT/cmake-build-*/test/
@@ -204,7 +205,14 @@ TEST_CASE("profile GPT2 124M param.") {
   // inputs and expected outputs, only used for error checking
   auto x = std::vector<int>(static_cast<size_t>(B) * T);
   llm::readIntoVector(stateFile, x);
-  gpt2.forward(llm::view<int, 2>{x.data(), B, T});
+  constexpr auto numTokens = 10;
+  const auto start = std::chrono::high_resolution_clock::now();
+  for(auto i = 0; i < numTokens; ++i) {
+    gpt2.forward(llm::view<int, 2>{x.data(), B, T});
+  }
+  const auto stop = std::chrono::high_resolution_clock::now();
+  const auto duration = std::chrono::duration<double>{stop - start};
+  std::cout << "Duration: " << duration.count() / numTokens << " seconds" << std::endl;
 }
 
 TEST_CASE("Test tokenizer.") {
