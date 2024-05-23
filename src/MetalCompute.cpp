@@ -2,8 +2,8 @@
 // Created by Hamidreza Khazaei on 5/21/24.
 //
 
-#include "MetalCompute.h"
 #include "Extension.h"
+#include "MetalCompute.h"
 
 namespace llm {
 
@@ -53,7 +53,7 @@ MTL::Buffer *mapToDevice(const BufferType &buff, MTL::Device *device) {
                            });
 }
 
-void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
+void MetalCompute::matMul(view<float, 3> out, view<const float, 3> in,
                        view<const float, 2> weight) {
 
   const auto batchSize = out.extent(0);
@@ -78,7 +78,7 @@ void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
   launchAndWait(out.size(), computeEncoder, commandBuffer, computePipelineState);
 }
 
-void MetalCompute::run(view<float, 3> out, view<const float, 3> in,
+void MetalCompute::matMul(view<float, 3> out, view<const float, 3> in,
                        view<const float, 2> weight, view<const float, 1> bias) {
 
   const auto batchSize = out.extent(0);

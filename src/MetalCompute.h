@@ -13,8 +13,8 @@ namespace llm {
 class MetalCompute {
 public:
   void setup();
-  void run(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight);
-  void run(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight,
+  void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight);
+  void matMul(view<float, 3> out, view<const float, 3> in, view<const float, 2> weight,
            view<const float, 1> bias);
 
 private:

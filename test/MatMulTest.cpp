@@ -221,7 +221,7 @@ TEST_CASE("Test matmul metal.") {
 
   auto metal = llm::MetalCompute{};
   metal.setup();
-  metal.run(outView, inView, weightView);
+  metal.matMul(outView, inView, weightView);
 
   constexpr auto eps = 1e-6;
   CHECK(llm::isTensorsEqual(out, outMatMul, eps));
@@ -258,7 +258,7 @@ TEST_CASE("Test matmul metal with bias 0.") {
 
   auto metal = llm::MetalCompute{};
   metal.setup();
-  metal.run(outView, inView, weightView, llm::view<const float, 1>{bias.data(), bias.size()});
+  metal.matMul(outView, inView, weightView, llm::view<const float, 1>{bias.data(), bias.size()});
 
   constexpr auto eps = 1e-6;
   CHECK(llm::isTensorsEqual(out, outMatMul, eps));
@@ -296,7 +296,7 @@ TEST_CASE("Test matmul metal with bias.") {
 
   auto metal = llm::MetalCompute{};
   metal.setup();
-  metal.run(outView, inView, weightView,
+  metal.matMul(outView, inView, weightView,
             llm::view<const float, 1>{bias.data(), bias.size()});
 
   constexpr auto eps = 1e-6;

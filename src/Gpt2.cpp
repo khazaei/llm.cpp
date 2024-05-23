@@ -12,7 +12,7 @@
 // one way to quickly switch the underlying matrix multiplication used.
 //#define matMul matMul
 //#define matMul matMulNeon
-#define matMul metal.run
+#define matMul metal.matMul
 
 // needs to be macros for stringify
 // NOLINT(BEGIN)
